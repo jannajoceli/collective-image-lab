@@ -172,6 +172,10 @@ canvas.drag{cursor:grabbing}
       <feTurbulence id="flowTurb" type="fractalNoise" baseFrequency="0.0047 0.0072"
                     numOctaves="2" seed="4" result="noise"/>
       <feDisplacementMap id="flowDisp" in="SourceGraphic" in2="noise" scale="66"
+                         xChannelSelector="R" yChannelSelector="G" result="flowed"/>
+      <feImage id="touchMap" x="0%" y="0%" width="100%" height="100%"
+               preserveAspectRatio="none" result="touchNoise"/>
+      <feDisplacementMap id="touchDisp" in="flowed" in2="touchNoise" scale="0"
                          xChannelSelector="R" yChannelSelector="G"/>
     </filter>
   </defs></svg>
@@ -252,19 +256,18 @@ canvas.drag{cursor:grabbing}
 
   <div id="railAdmin" hidden>
     <div class="notice" style="margin-bottom:22px"><b>Instructor only.</b>
-    Any lab lead can build, but one person per room, and only once everyone&rsquo;s
-    images are in.</div>
+    Any facilitator can build, but only one person should build at a time, and
+    only once everyone&rsquo;s images are in.</div>
 
     <div class="step">
       <h2><span class="num">1</span> Collection</h2>
       <select id="collPick"></select>
-      <input type="text" id="collCustom" placeholder="new collection id" hidden style="margin-top:7px">
       <p class="hint" id="collState" style="margin-top:8px"></p>
     </div>
 
     <div class="step">
       <h2><span class="num">2</span> Add files</h2>
-      <div class="zone" id="zoneBuild"><b>Drop this lab&rsquo;s images</b>or click to choose</div>
+      <div class="zone" id="zoneBuild"><b>Drop collection images</b>or click to choose</div>
       <p class="hint" id="buildLoaded" style="margin-top:9px">Nothing staged.</p>
     </div>
 
@@ -322,16 +325,6 @@ canvas.drag{cursor:grabbing}
 /* ═══ EDIT THESE ═══════════════════════════════════════════════════════ */
 const PROJECT    = "5AAVC200-2026";
 const UPLOAD_URL = "https://forms.gle/5afGnXjzx4ph5Mtm6";
-// The labs you teach. Add or remove freely; leads pick from this list so
-// collection ids stay consistent across builds.
-const COLLECTIONS = [
-  { id:"mon-1400", title:"Mon 14:00" },
-  { id:"tue-1100", title:"Tue 11:00" },
-  { id:"tue-1500", title:"Tue 15:00" },
-  { id:"thu-0900", title:"Thu 09:00" },
-  { id:"thu-1300", title:"Thu 13:00" },
-  { id:"thu-1600", title:"Thu 16:00" }
-];
 /* ═════════════════════════════════════════════════════════════════════ */
 
 const INDEX_URL = new URLSearchParams(location.search).get("collection") || "index.json";
@@ -767,6 +760,35 @@ function collById(id){
   return collList().filter(function(c){ return c.id === id; })[0] || null;
 }
 
+function collectionTime(c){
+  const d = new Date((c && (c.created || c.updated)) || "");
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function collectionTimeText(c){
+  const d = collectionTime(c);
+  return d ? new Intl.DateTimeFormat(undefined, {
+    dateStyle:"medium", timeStyle:"short"
+  }).format(d) : "";
+}
+
+function collectionTitle(c){
+  const stamp = collectionTimeText(c);
+  return stamp ? "Collection · " + stamp : (c.title || c.id);
+}
+
+function collectionsByCreation(){
+  return collList().slice().sort(function(a,b){
+    const at = collectionTime(a), bt = collectionTime(b);
+    const diff = (bt ? bt.getTime() : 0) - (at ? at.getTime() : 0);
+    return diff || String(b.id).localeCompare(String(a.id));
+  });
+}
+
+function newCollectionId(created){
+  return created.replace(/[-:.]/g, "");
+}
+
 async function loadIndex(){
   const meta = document.getElementById("collMeta");
   const note = document.getElementById("collNote");
@@ -797,12 +819,12 @@ async function loadIndex(){
 function renderCollections(){
   const list = document.getElementById("collections");
   list.innerHTML = "";
-  collList().forEach(function(c){
+  collectionsByCreation().forEach(function(c){
     const el = document.createElement("div");
     el.className = "coll" + (c.id === selectedId ? " on" : "") +
       (loadedIds.has(c.id) ? " loaded" : "");
     el.innerHTML = '<div class="t"><b></b><span></span></div>';
-    el.querySelector("b").textContent = c.title;
+    el.querySelector("b").textContent = collectionTitle(c);
     el.querySelector("span").textContent =
       c.count + " images · " + fmtSize(c.size_mb) +
       (loadedIds.has(c.id) ? " · on canvas" : "");
@@ -826,7 +848,7 @@ async function selectAndLoad(c){
   selectedId = c.id;
   renderCollections();
   renderDonate();
-  say('Loading "' + c.title + '"…');
+  say('Loading "' + collectionTitle(c) + '"…');
   try {
     const res = await fetch(BASE + c.file + "?v=" + encodeURIComponent(c.updated),
       { cache: c.locked ? "force-cache" : "default" });
@@ -841,7 +863,7 @@ async function selectAndLoad(c){
     renderCollections();
     afterItemsChanged();
   } catch (err) {
-    say('Could not load "' + c.title + '".');
+    say('Could not load "' + collectionTitle(c) + '".');
   }
 }
 
@@ -849,12 +871,12 @@ function renderDonate(){
   const box = document.getElementById("donateBox");
   const c = selectedId ? collById(selectedId) : null;
   if (c && c.locked){
-    box.innerHTML = '<div class="notice"><b>' + escapeHtml(c.title) +
+    box.innerHTML = '<div class="notice"><b>' + escapeHtml(collectionTitle(c)) +
       ' is locked.</b> No further images can be added. You can still load, arrange ' +
       'and export it.</div>';
     return;
   }
-  const where = c ? escapeHtml(c.title) : "your lab";
+  const where = c ? escapeHtml(collectionTitle(c)) : "a new collection";
   box.innerHTML =
     '<div class="notice az" style="margin-bottom:11px"><b>Donating is public and ' +
     'permanent.</b> Your images join the open collection under CC BY 4.0. Everything ' +
@@ -893,45 +915,51 @@ document.getElementById("vAdmin").addEventListener("click", async function(e){
   populatePickers();
 });
 
-function populatePickers(){
+function populatePickers(preferredId){
   const sel = document.getElementById("collPick");
-  if (!sel.options.length){
-    sel.innerHTML = COLLECTIONS.map(function(c){
-      return '<option value="' + c.id + '">' + c.title + '</option>';
-    }).join("") + '<option value="__custom">other / new…</option>';
-    sel.onchange = function(){
-      document.getElementById("collCustom").hidden = sel.value !== "__custom";
-      showCollState();
-    };
-  }
+  const previous = preferredId || sel.value || "__new__";
+  sel.innerHTML = "";
+  sel.add(new Option("New collection", "__new__"));
+  collectionsByCreation().forEach(function(c){
+    sel.add(new Option(collectionTimeText(c) || collectionTitle(c), c.id));
+  });
+  sel.value = collById(previous) ? previous : "__new__";
+  sel.onchange = showCollState;
   showCollState();
   const un = document.getElementById("unlockPick");
-  const locked = collList().filter(function(c){ return c.locked; });
-  un.innerHTML = locked.length
-    ? locked.map(function(c){
-        return '<option value="' + c.id + '">' + c.title + '</option>'; }).join("")
-    : '<option value="">no locked collections</option>';
+  const locked = collectionsByCreation().filter(function(c){ return c.locked; });
+  un.innerHTML = "";
+  if (locked.length){
+    locked.forEach(function(c){
+      un.add(new Option(collectionTimeText(c) || collectionTitle(c), c.id));
+    });
+  } else {
+    un.add(new Option("no locked collections", ""));
+  }
   un.disabled = locked.length === 0;
 }
 
 function showCollState(){
   const meta = adminCollection();
+  if (meta.isNew){
+    document.getElementById("collState").textContent =
+      "A creation time and collection ID will be added when you build.";
+    document.getElementById("collState").style.color = "var(--dim)";
+    return;
+  }
   const c = collById(meta.id);
   const el = document.getElementById("collState");
   if (!c){ el.textContent = "New — nothing published yet."; return; }
-  el.textContent = c.count + " images · last built " + (c.updated || "").slice(0,16) +
+  el.textContent = c.count + " images · created " + (collectionTimeText(c) || "unknown") +
+    " · last built " + (c.updated || "").slice(0,16) +
     (c.locked ? " · LOCKED" : "");
   el.style.color = c.locked ? "var(--amber-ink)" : "var(--dim)";
 }
 
 function adminCollection(){
   const sel = document.getElementById("collPick").value;
-  if (sel === "__custom"){
-    const id = document.getElementById("collCustom").value.trim();
-    return { id:id, title:id };
-  }
-  const found = COLLECTIONS.filter(function(c){ return c.id === sel; })[0];
-  return found || { id:sel, title:sel };
+  if (sel === "__new__") return { isNew:true };
+  return collById(sel) || { id:sel, title:sel };
 }
 
 async function sha1(buf){
@@ -1000,13 +1028,21 @@ async function fetchIndex(){
 }
 
 document.getElementById("doBuild").addEventListener("click", async function(){
-  const meta = adminCollection(), cid = meta.id, title = meta.title;
   const bstat = document.getElementById("buildStatus");
-  if (!cid){ bstat.textContent = "Pick or type a collection id first."; return; }
+  const picked = adminCollection();
 
   bstat.textContent = "Fetching current index…";
   const index = await fetchIndex();
   indexData = index;
+
+  const now = new Date().toISOString();
+  const meta = picked.isNew ? {
+    id:newCollectionId(now), created:now
+  } : (collById(picked.id) || picked);
+  const cid = meta.id;
+  const created = meta.created || meta.updated || now;
+  const title = collectionTitle(Object.assign({}, meta, { created:created }));
+  if (!cid){ bstat.textContent = "Choose a collection first."; return; }
 
   const existing = collById(cid);
   if (existing && existing.locked){
@@ -1040,9 +1076,8 @@ document.getElementById("doBuild").addEventListener("click", async function(){
 
   const all = prev.images.concat(fresh);
   const locked = document.getElementById("lockThis").checked;
-  const now = new Date().toISOString();
   const bundle = { format:"dm-collection/1", project:PROJECT, collection:cid,
-    title:title, updated:now, images:all };
+    title:title, created:created, updated:now, images:all };
   const sizeMb = Number((JSON.stringify(bundle).length/1e6).toFixed(2));
 
   const rest = collList().filter(function(c){ return c.id !== cid; });
@@ -1051,8 +1086,12 @@ document.getElementById("doBuild").addEventListener("click", async function(){
     licence:index.licence || { type:"CC BY 4.0",
       statement:"Images donated by students to this open teaching collection." },
     collections: rest.concat([{ id:cid, title:title, file:"collection-" + cid + ".json",
-      count:all.length, size_mb:sizeMb, updated:now, locked:locked }])
-      .sort(function(a,b){ return a.id.localeCompare(b.id); })
+      count:all.length, size_mb:sizeMb, created:created, updated:now, locked:locked }])
+      .sort(function(a,b){
+        const at = collectionTime(a), bt = collectionTime(b);
+        const diff = (bt ? bt.getTime() : 0) - (at ? at.getTime() : 0);
+        return diff || String(b.id).localeCompare(String(a.id));
+      })
   });
   delete idx.sessions;
   idx.total = idx.collections.reduce(function(n,c){ return n + c.count; }, 0);
@@ -1072,7 +1111,7 @@ document.getElementById("doBuild").addEventListener("click", async function(){
   buildFiles = [];
   document.getElementById("buildLoaded").textContent = "Publish and reload before building again.";
   indexData = idx;
-  populatePickers();
+  populatePickers(cid);
 });
 
 const unlockConfirm = document.getElementById("unlockConfirm");
@@ -1094,7 +1133,7 @@ document.getElementById("doUnlock").addEventListener("click", async function(){
   delete index.sessions;
   offerDownload("dlIndexUnlock", "index.json", index);
   document.getElementById("unlockOut").hidden = false;
-  st.textContent = '"' + target.title + '" unlocked. Commit index.json to apply it.';
+  st.textContent = '"' + collectionTitle(target) + '" unlocked. Commit index.json to apply it.';
   unlockConfirm.value = "";
   document.getElementById("doUnlock").disabled = true;
   indexData = index;
@@ -1122,6 +1161,8 @@ function offerDownload(id, filename, obj){
   const img  = document.getElementById("marble");
   const turb = document.getElementById("flowTurb");
   const disp = document.getElementById("flowDisp");
+  const touchMap = document.getElementById("touchMap");
+  const touchDisp = document.getElementById("touchDisp");
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   function dismiss(){
@@ -1139,8 +1180,64 @@ function offerDownload(id, filename, obj){
      paint frozen. Writing the attributes each frame forces the filter to
      re-evaluate everywhere. */
   let flowRaf = null;
+  let rippleRaf = null;
+  let rippleActive = false;
+  let lastPointerMap = 0;
   const t0 = performance.now();
   const TAU = Math.PI*2;
+
+  /* ImgNetMaker-style pointer focus without requiring WebGL. A small generated
+     displacement map places a radial bend exactly where the pointer or finger
+     meets the paint. Mouse movement keeps a gentle focus; a press produces a
+     stronger, damped liquid pulse. */
+  const rippleCanvas = document.createElement("canvas");
+  rippleCanvas.width = rippleCanvas.height = 160;
+  const rippleCtx = rippleCanvas.getContext("2d", { alpha:false });
+  const ripplePixels = rippleCtx.createImageData(160, 160);
+
+  function updateRippleMap(px, py){
+    const w = 160, h = 160;
+    const cx = Math.max(0, Math.min(1, px))*w;
+    const cy = Math.max(0, Math.min(1, py))*h;
+    const data = ripplePixels.data;
+    for (let y = 0; y < h; y++){
+      for (let x = 0; x < w; x++){
+        const dx = (x-cx)/w, dy = (y-cy)/h;
+        const r = Math.sqrt(dx*dx + dy*dy);
+        const nx = r ? dx/r : 0, ny = r ? dy/r : 0;
+        const swell = Math.exp(-r*r*30);
+        const ring = Math.sin(r*58)*Math.exp(-r*8);
+        const force = Math.max(-1, Math.min(1, swell*.78 + ring*.36));
+        const o = (y*w+x)*4;
+        data[o] = Math.round(128 + nx*force*127);
+        data[o+1] = Math.round(128 + ny*force*127);
+        data[o+2] = 128;
+        data[o+3] = 255;
+      }
+    }
+    rippleCtx.putImageData(ripplePixels, 0, 0);
+    const url = rippleCanvas.toDataURL("image/png");
+    touchMap.setAttribute("href", url);
+    touchMap.setAttributeNS("http://www.w3.org/1999/xlink", "href", url);
+  }
+
+  function pulseAt(clientX, clientY, pointerType){
+    if (reduce || exiting) return;
+    updateRippleMap(clientX/window.innerWidth, clientY/window.innerHeight);
+    if (rippleRaf) cancelAnimationFrame(rippleRaf);
+    rippleActive = true;
+    const start = performance.now(), duration = 950;
+    (function pulse(now){
+      const p = Math.max(0, Math.min(1, ((now || performance.now())-start)/duration));
+      const wave = Math.sin(p*Math.PI)*Math.exp(-p*1.2);
+      touchDisp.setAttribute("scale", (18 + wave*112).toFixed(1));
+      if (p < 1) rippleRaf = requestAnimationFrame(pulse);
+      else {
+        rippleActive = false;
+        touchDisp.setAttribute("scale", pointerType === "mouse" ? "18" : "0");
+      }
+    })();
+  }
 
   function flow(now){
     const t = ((now || performance.now()) - t0)/1000;
@@ -1161,6 +1258,20 @@ function offerDownload(id, filename, obj){
   }
 
   let exiting = false;
+  el.addEventListener("pointermove", function(e){
+    if (reduce || exiting || e.pointerType !== "mouse" || rippleActive) return;
+    if (e.timeStamp-lastPointerMap < 90) return;
+    lastPointerMap = e.timeStamp;
+    updateRippleMap(e.clientX/window.innerWidth, e.clientY/window.innerHeight);
+    touchDisp.setAttribute("scale", "18");
+  }, { passive:true });
+  el.addEventListener("pointerleave", function(){
+    if (!rippleActive) touchDisp.setAttribute("scale", "0");
+  });
+  el.addEventListener("pointerdown", function(e){
+    pulseAt(e.clientX, e.clientY, e.pointerType || "mouse");
+  }, { passive:true });
+
   document.getElementById("enter").addEventListener("click", function(){
     if (exiting) return;
     exiting = true;

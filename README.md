@@ -20,15 +20,24 @@ to the instructor's authorised account.
 
 The recommended supported capacity is **500 images per collection/canvas**:
 
-- **Hue, Light, and Name:** up to 500.
+- **Hue:** up to 500.
 - **Similarity:** exact t-SNE up to 250. Above that, the interface explains
-  that the quadratic calculation is too heavy and asks users to use one of the
-  other arrangements.
+  that the quadratic calculation is too heavy and asks users to use Hue.
 - **Admin Builder:** up to 500, with automatic JSON chunking below 20 MiB per
   file so GitHub's 25 MiB browser-upload limit is respected.
 
 Both the Lab and private Admin Builder accept multiple files, selected folders,
 and folders dropped from the desktop.
+
+## How a seminar collection becomes shared
+
+Each participant's Lab runs only in that participant's browser. The seminar lead
+cannot automatically access those local images. Participants must submit their
+chosen originals through the donation form (or send them to the lead by another
+agreed method). At the end of the session, the lead downloads the submissions
+into one folder, opens the private Admin Builder, builds the collection, and
+uploads the generated collection JSON file(s) plus `index.json` to this
+repository. The public **Collections** view then lists the published collection.
 
 ## Weekly workflow
 1. Download the images students uploaded to the shared link.

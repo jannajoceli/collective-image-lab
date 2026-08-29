@@ -209,18 +209,22 @@ canvas.drag{cursor:grabbing}
 
 <header>
   <span class="brand"><b>Collective Image Lab</b> &middot; 5AAVC200 working with data</span>
+  <div class="views" role="tablist" aria-label="Tool view">
+    <button id="vLab" class="on" role="tab" aria-selected="true">Lab</button>
+    <button id="vCollections" role="tab" aria-selected="false">Collections</button>
+  </div>
 </header>
 
 <aside>
-    <div class="step">
+    <div class="step" id="collectionSource" hidden>
       <h2><span class="num az">1</span> Collections</h2>
       <p class="hint" id="collMeta">&nbsp;</p>
       <div id="collections"></div>
       <p class="hint" id="collNote" style="margin-top:10px"></p>
     </div>
 
-    <div class="step">
-      <h2><span class="num">2</span> Your images</h2>
+    <div class="step" id="labSource">
+      <h2><span class="num">1</span> Your images</h2>
       <div class="zone" id="zone"><b>Drop images or a folder here</b>or choose below</div>
       <div class="row picker-row">
         <button id="chooseFiles">Choose images</button>
@@ -240,22 +244,19 @@ canvas.drag{cursor:grabbing}
     </div>
 
     <div class="step off" id="stepRun">
-      <h2><span class="num">3</span> Arrange</h2>
+      <h2><span class="num">2</span> Arrange</h2>
       <p>Choose how images should be positioned, then run the method.</p>
       <div class="row" style="margin-bottom:11px">
         <button data-mode="similarity">Similarity</button>
         <button data-mode="hue">Hue</button>
-        <button data-mode="light">Light</button>
-        <button data-mode="name">Name</button>
       </div>
       <button class="go" id="run">Run</button>
       <p class="hint" style="margin-top:9px">Similarity will not come out identical twice.
-      Hue, Light and Name will. Similarity supports up to 250 images; the other
-      arrangements support 500.</p>
+      Hue will. Similarity supports up to 250 images; Hue supports 500.</p>
     </div>
 
     <div class="step off" id="stepShare">
-      <h2><span class="num">4</span> Record &amp; contribute</h2>
+      <h2><span class="num">3</span> <span id="shareTitle">Record &amp; contribute</span></h2>
       <div class="row" style="margin-bottom:12px">
         <button id="expPng">Save view</button>
         <button id="expCsv">Save layout</button>
@@ -295,6 +296,7 @@ const items = [];
 let mode = "similarity", tileSize = 100, layoutCache = {}, tsneJob = null;
 let indexData = null, selectedId = null;
 const loadedIds = new Set();
+let publicView = "lab";
 const view = { k:1, x:0, y:0 };
 
 const cv = document.getElementById("cv");
@@ -304,6 +306,25 @@ const emptyEl = document.getElementById("empty");
 const legendEl = document.getElementById("legend");
 
 const EDGE = { own:"#7B2FF7", collection:"#1B9CD8" };
+
+function showPublicView(next){
+  publicView = next === "collections" ? "collections" : "lab";
+  const collections = publicView === "collections";
+  document.getElementById("labSource").hidden = collections;
+  document.getElementById("collectionSource").hidden = !collections;
+  document.getElementById("vLab").classList.toggle("on", !collections);
+  document.getElementById("vCollections").classList.toggle("on", collections);
+  document.getElementById("vLab").setAttribute("aria-selected", String(!collections));
+  document.getElementById("vCollections").setAttribute("aria-selected", String(collections));
+  document.getElementById("shareTitle").textContent = collections ? "Record" : "Record & contribute";
+  document.getElementById("donateBox").hidden = collections;
+  emptyEl.textContent = items.length ? "Press Run to arrange them." :
+    (collections ? "Choose a published collection, then press Run." :
+      "Drop or choose your images, then press Run.");
+}
+
+document.getElementById("vLab").addEventListener("click", function(){ showPublicView("lab"); });
+document.getElementById("vCollections").addEventListener("click", function(){ showPublicView("collections"); });
 
 function say(m){ statusEl.textContent = m || ""; statusEl.classList.toggle("hide", !m); }
 

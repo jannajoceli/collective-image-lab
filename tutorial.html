@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Collective Image Lab &middot; Tutorial</title>
+<meta name="description" content="How to run a session with the Collective Image Lab: the Lab and Collections panels, arranging by Similarity and Hue, supported images and capacity.">
+<style>
+:root{
+  /* Tokens taken directly from collective-image-lab/index.html */
+  --ink:#171442; --ink2:#4A4A6A; --dim:#8A8AA3;
+  --line:#E6E4F0; --line2:#D2CFE4;
+  --bg:#FFFFFF; --panel:#FBFAFE;
+  /* Colour carries state, not decoration:
+     violet  = your own work, in your own browser
+     magenta = gradient partner only, never used alone
+     azure   = anything belonging to a published, shared collection
+     amber   = locked or capped                                     */
+  --violet:#7B2FF7; --magenta:#E5147F; --azure:#1B9CD8; --amber:#F0A020;
+  --azure-bg:#F0F8FC; --azure-line:#BDE0F1;
+  --amber-bg:#FFF9EF; --amber-line:#F6E0BE; --amber-ink:#7A5313;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  --rail:250px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:88px}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:15px/1.62 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+
+/* ── header ─────────────────────────────────────────────── */
+header{position:sticky;top:0;height:56px;display:flex;align-items:center;gap:14px;
+  padding:0 24px;background:rgba(255,255,255,.94);backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--line);z-index:40}
+.brand{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand b{color:var(--violet);font-weight:600}
+.brand em{font-style:normal;color:var(--dim)}
+
+/* ── shell ──────────────────────────────────────────────── */
+.shell{max-width:1180px;margin:0 auto;padding:0 clamp(20px,4vw,40px)}
+.cols{display:grid;grid-template-columns:var(--rail) minmax(0,1fr);gap:clamp(32px,5vw,64px);
+  align-items:start}
+
+/* ── hero ───────────────────────────────────────────────── */
+.hero{padding:clamp(48px,7vw,84px) 0 clamp(30px,4vw,44px);max-width:720px}
+.kicker{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--ink2);margin:0 0 18px}
+h1{margin:0;font-size:clamp(36px,5.6vw,64px);line-height:1.03;font-weight:800;
+  letter-spacing:-.025em}
+.rule{width:96px;height:4px;border-radius:2px;margin:22px 0 20px;
+  background:linear-gradient(90deg,var(--violet),var(--magenta))}
+.sub{margin:0 0 14px;font-size:clamp(17px,2.1vw,21px);font-style:italic;
+  color:var(--violet);font-weight:500}
+.lede{margin:0;font-size:15.5px;line-height:1.68;color:var(--ink2);max-width:56ch}
+
+/* colour legend — the document reads in the tool's own colour language */
+.legend{display:flex;flex-wrap:wrap;gap:8px 22px;margin:30px 0 0;padding:16px 0 0;
+  border-top:1px solid var(--line)}
+.legend div{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10px;
+  letter-spacing:.07em;text-transform:uppercase;color:var(--dim)}
+.chip{width:10px;height:10px;border-radius:3px;flex:none}
+.chip.v{background:var(--violet)} .chip.a{background:var(--azure)}
+.chip.m{background:var(--amber)}
+
+/* ── link card ──────────────────────────────────────────── */
+.links{margin:34px 0 0;max-width:420px}
+.card{display:block;text-decoration:none;color:inherit;border:1px solid var(--line);
+  border-left:3px solid var(--azure);border-radius:12px;padding:16px 18px;background:#fff;
+  transition:.16s}
+.card:hover{border-color:var(--azure-line);border-left-color:var(--azure);
+  transform:translateY(-1px)}
+.card .tag{display:inline-block;font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;
+  text-transform:uppercase;border-radius:4px;padding:2px 7px;margin-bottom:9px;
+  color:var(--azure);border:1px solid var(--azure-line);background:var(--azure-bg)}
+.card b{display:block;font-size:14px;font-weight:600;margin-bottom:4px}
+.card code{font-family:var(--mono);font-size:11.5px;color:var(--ink2);word-break:break-all}
+
+/* ── rail ───────────────────────────────────────────────── */
+nav{position:sticky;top:88px;padding:8px 0 40px}
+nav p{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--dim);margin:0 0 12px}
+nav ol{list-style:none;margin:0;padding:0}
+nav a{display:block;padding:6px 0 6px 13px;font-size:12.5px;color:var(--ink2);
+  text-decoration:none;border-left:2px solid var(--line);transition:.14s}
+nav a:hover{color:var(--ink);border-left-color:var(--line2)}
+nav a.on{color:var(--violet);border-left-color:var(--violet);font-weight:600}
+
+/* ── sections ───────────────────────────────────────────── */
+main{padding-bottom:80px;min-width:0}
+section{padding:36px 0;border-top:1px solid var(--line)}
+section:first-child{border-top:0;padding-top:8px}
+.eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--dim);margin:0 0 8px}
+h2{margin:0 0 16px;font-size:23px;font-weight:700;letter-spacing:-.015em}
+h3{margin:26px 0 8px;font-size:15px;font-weight:600}
+p{margin:0 0 13px;max-width:62ch}
+main p{color:var(--ink2)}
+strong{color:var(--ink);font-weight:600}
+code{font-family:var(--mono);font-size:.88em;background:var(--panel);border:1px solid var(--line);
+  border-radius:4px;padding:1px 5px;color:var(--ink)}
+
+/* ── the two panels ─────────────────────────────────────── */
+.panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;
+  margin:18px 0 6px}
+.panel{border:1px solid var(--line);border-radius:12px;padding:16px 18px;background:#fff}
+.panel.own{border-top:3px solid var(--violet)}
+.panel.shared{border-top:3px solid var(--azure);background:var(--azure-bg);
+  border-color:var(--azure-line)}
+.panel h3{margin:0 0 6px;font-size:15.5px}
+.panel p{margin:0;font-size:13.5px;line-height:1.6;color:var(--ink2)}
+.panel .steps{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--dim);margin:10px 0 0}
+
+/* ── the session spine ──────────────────────────────────── */
+.tracks{display:flex;flex-wrap:wrap;gap:8px 20px;margin:0 0 26px;padding:12px 14px;
+  background:var(--panel);border:1px solid var(--line);border-radius:10px}
+.tracks div{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10px;
+  letter-spacing:.07em;text-transform:uppercase;color:var(--ink2)}
+ol.flow{list-style:none;margin:0;padding:0;counter-reset:s}
+ol.flow li{position:relative;padding:0 0 22px 46px;counter-increment:s}
+ol.flow li::before{content:"";position:absolute;left:13px;top:0;bottom:0;width:2px;
+  background:var(--violet)}
+ol.flow li::after{content:counter(s);position:absolute;left:0;top:0;width:28px;height:28px;
+  border-radius:50%;background:var(--violet);color:#fff;display:flex;align-items:center;
+  justify-content:center;font-family:var(--mono);font-size:12px;font-weight:600}
+ol.flow li.a::before,ol.flow li.a::after{background:var(--azure)}
+ol.flow li:last-child::before{bottom:auto;height:14px}
+ol.flow li b{display:block;font-size:14.5px;font-weight:600;color:var(--ink);
+  margin:4px 0 4px;line-height:1.4}
+ol.flow li span{display:block;font-size:13.5px;color:var(--ink2);max-width:58ch}
+
+/* ── notices ────────────────────────────────────────────── */
+.notice{border-radius:10px;padding:13px 16px;margin:18px 0;font-size:13.5px;line-height:1.6}
+.notice p{margin:0;max-width:60ch;color:inherit}
+.notice p + p{margin-top:8px}
+.notice.am{border:1px solid var(--amber-line);background:var(--amber-bg);color:var(--amber-ink)}
+.notice.am strong{color:#5C3D0A}
+.notice.az{border:1px solid var(--azure-line);background:var(--azure-bg);color:#155F82}
+.notice.az strong{color:#0E4762}
+
+/* ── data ───────────────────────────────────────────────── */
+table{border-collapse:collapse;width:100%;max-width:560px;margin:16px 0;font-size:13.5px}
+th,td{text-align:left;padding:9px 12px 9px 0;border-bottom:1px solid var(--line);
+  vertical-align:top}
+th{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--dim);font-weight:500}
+td.n{font-family:var(--mono);color:var(--ink);white-space:nowrap}
+ul.plain{margin:0 0 13px;padding-left:19px;color:var(--ink2);max-width:60ch}
+ul.plain li{margin-bottom:6px}
+
+/* ── footer ─────────────────────────────────────────────── */
+footer{border-top:1px solid var(--line);padding:26px 0 60px}
+.credit{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;line-height:1.9;
+  color:var(--dim);margin:0}
+.credit b{color:var(--ink2);font-weight:600}
+.credit a{color:var(--dim)}
+
+a{color:var(--violet)}
+a:focus-visible,.card:focus-visible{outline:2px solid var(--violet);outline-offset:3px;
+  border-radius:4px}
+
+@media (max-width:860px){
+  .cols{grid-template-columns:1fr}
+  nav{position:static;padding:0 0 24px;border-bottom:1px solid var(--line);margin-bottom:8px}
+  nav ol{display:flex;flex-wrap:wrap;gap:4px 0}
+  nav a{padding:5px 12px 5px 11px}
+}
+@media print{
+  header,nav{display:none}
+  .cols{grid-template-columns:1fr}
+  body{font-size:11pt}
+  section{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="brand"><b>Collective Image Lab</b> &middot; <em>tutorial</em></span>
+</header>
+
+<div class="shell">
+
+  <div class="hero">
+    <p class="kicker">Tutorial &middot; open version, for everyone</p>
+    <h1>Collective&nbsp;Image&nbsp;Lab</h1>
+    <div class="rule"></div>
+    <p class="sub">The same images, read more than one way.</p>
+    <p class="lede">A browser tool for looking at a room&rsquo;s worth of images together.
+      Participants load their own images, arrange them by visual similarity or by hue, and open
+      published collections built by earlier sessions. Everything runs in the browser; the page
+      uploads nothing.</p>
+
+    <div class="legend" aria-label="Colour key used throughout this page">
+      <div><span class="chip v"></span>Violet &mdash; your images, in your browser</div>
+      <div><span class="chip a"></span>Azure &mdash; published and shared</div>
+      <div><span class="chip m"></span>Amber &mdash; locked or capped</div>
+    </div>
+
+    <div class="links">
+      <a class="card" href="https://jannajoceli.github.io/collective-image-lab/">
+        <span class="tag">Open the tool</span>
+        <b>Collective Image Lab</b>
+        <code>jannajoceli.github.io/collective-image-lab/</code>
+      </a>
+    </div>
+  </div>
+
+  <div class="cols">
+
+    <nav aria-label="Contents">
+      <p>Contents</p>
+      <ol>
+        <li><a href="#hosting">What is hosted where</a></li>
+        <li><a href="#panels">Lab and Collections</a></li>
+        <li><a href="#session">Running a session</a></li>
+        <li><a href="#arrange">Similarity and Hue</a></li>
+        <li><a href="#capacity">Images and capacity</a></li>
+        <li><a href="#explore">Opening a collection</a></li>
+        <li><a href="#contribute">Contributing images</a></li>
+        <li><a href="#publishing">Getting a collection published</a></li>
+      </ol>
+    </nav>
+
+    <main>
+
+      <section id="hosting">
+        <p class="eyebrow">01 &middot; Architecture</p>
+        <h2>What is hosted where</h2>
+        <p>The Lab and Collections interface is hosted by GitHub Pages. Participants use Lab to
+          upload and arrange images in their own browser. Published collections are stored as JSON
+          files in the same repository and explored through Collections.</p>
+        <p>Nothing about this is server-side. Layouts are computed on the participant&rsquo;s own
+          machine each time they arrange, which is why the arrangement is something they perform
+          rather than a result handed to them.</p>
+        <div class="notice az">
+          <p><strong>Images a participant loads into Lab never leave their browser.</strong> The
+            page makes no upload of its own. Contributing to a shared collection is a separate,
+            deliberate act &mdash; see <a href="#contribute">Contributing images</a>.</p>
+        </div>
+      </section>
+
+      <section id="panels">
+        <p class="eyebrow">02 &middot; The interface</p>
+        <h2>Lab and Collections</h2>
+        <p>Two panels, switched from the header. They answer different questions, and the
+          interface colours them differently so it stays clear which set of images is on
+          screen.</p>
+
+        <div class="panels">
+          <div class="panel own">
+            <h3>Lab</h3>
+            <p>A participant&rsquo;s own images, held in their browser for the session and gone
+              when the tab closes.</p>
+            <p class="steps">1 Your images &rarr; 2 Arrange</p>
+          </div>
+          <div class="panel shared">
+            <h3>Collections</h3>
+            <p>Published sets built from images earlier groups chose to contribute. Open to
+              anyone with the link.</p>
+            <p class="steps">1 Collections &rarr; 2 Arrange</p>
+          </div>
+        </div>
+
+        <p>Both end in the same place. Once images are loaded, from either source, the arranging
+          works identically.</p>
+      </section>
+
+      <section id="session">
+        <p class="eyebrow">03 &middot; Sequence</p>
+        <h2>Running a session</h2>
+        <p>A workable shape for a session, whether you are running one or working through it
+          on your own. The colour of each marker tells you whose images are on
+          screen at that point.</p>
+
+        <div class="tracks" aria-label="Whose images are on screen at each step">
+          <div><span class="chip v"></span>The participant&rsquo;s own images</div>
+          <div><span class="chip a"></span>A published, shared collection</div>
+        </div>
+
+        <ol class="flow">
+          <li>
+            <b>Everyone generates or gathers images</b>
+            <span>Whatever the brief is &mdash; a prompt run through an image model, a set found
+              in the wild, a personal archive. Ask participants to keep the files together in one
+              folder.</span>
+          </li>
+          <li>
+            <b>Open Lab and load them</b>
+            <span>Drag the folder into <strong>Your images</strong>, or use the file picker.
+              Nothing is uploaded.</span>
+          </li>
+          <li>
+            <b>Arrange, and arrange again</b>
+            <span>Run <strong>Similarity</strong>, then <strong>Hue</strong>, on the same set.
+              The gap between the two arrangements is usually where the discussion starts.</span>
+          </li>
+          <li>
+            <b>Compare across the room</b>
+            <span>Participants who ran near-identical briefs rarely get near-identical
+              arrangements. Put two screens side by side.</span>
+          </li>
+          <li class="a">
+            <b>Open a published collection</b>
+            <span>Switch to <strong>Collections</strong> and choose a set by name. Now the same
+              two arrangements run over hundreds of images from other groups.</span>
+          </li>
+          <li class="a">
+            <b>Close on what the arrangement can and cannot see</b>
+            <span>Hue reads colour. Similarity reads visual features. Neither reads subject,
+              intent or provenance &mdash; which is the point worth landing.</span>
+          </li>
+        </ol>
+      </section>
+
+      <section id="arrange">
+        <p class="eyebrow">04 &middot; Arranging</p>
+        <h2>Similarity and Hue</h2>
+        <p><strong>Hue</strong> arranges images by average hue. It is fast, deterministic, and
+          handles the full 500-image canvas.</p>
+        <p><strong>Similarity</strong> arranges by computed visual similarity using exact t-SNE.
+          It is the more interesting view and the more expensive one, which is why it is capped
+          lower.</p>
+        <div class="notice am">
+          <p><strong>Above 250 images, Similarity is disabled</strong> and the interface directs
+            participants to Hue. If a session needs Similarity on a large set, split the images
+            into smaller batches rather than trying to force it.</p>
+        </div>
+        <p>Hue and Similarity are both calculated from a representative static frame. They analyse
+          appearance, not motion, so an animated GIF is read on the strength of one frame even
+          though it stays animated on screen.</p>
+      </section>
+
+      <section id="capacity">
+        <p class="eyebrow">05 &middot; Limits</p>
+        <h2>Supported images and capacity</h2>
+        <p>The recommended maximum is 500 images per collection or canvas. JPEG, PNG, WebP and GIF
+          files are accepted. GIF animations are preserved and remain visibly animated in Lab and
+          Collections.</p>
+
+        <table>
+          <thead><tr><th>View</th><th>Ceiling</th><th>Above the ceiling</th></tr></thead>
+          <tbody>
+            <tr><td>Hue</td><td class="n">500</td><td>&mdash;</td></tr>
+            <tr><td>Similarity</td><td class="n">250</td>
+              <td>Disabled; the interface directs users to Hue</td></tr>
+            <tr><td>Collection or canvas</td><td class="n">500</td>
+              <td>Split across JSON parts</td></tr>
+          </tbody>
+        </table>
+
+        <ul class="plain">
+          <li>Unreadable or unsupported files are skipped rather than stopping the whole load, and
+            their filenames are reported.</li>
+          <li>Large collections may be divided into multiple JSON parts, kept below
+            GitHub&rsquo;s browser-upload limit.</li>
+          <li>Very large sets take a moment to arrange. Keep the tab in the foreground while a
+            layout is computing.</li>
+        </ul>
+      </section>
+
+      <section id="explore">
+        <p class="eyebrow">06 &middot; Shared sets</p>
+        <h2>Opening a collection</h2>
+        <div class="notice az">
+          <p>Collections are ordered by creation time, newest first. Once the archive grows beyond
+            six collections, the interface shows the six most recent by default and provides
+            search and <strong>Show all collections</strong>.</p>
+          <p>A collection never loads automatically. The participant chooses which set to
+            open.</p>
+        </div>
+        <p>Collections are named after the images or the seminar theme rather than a date or a
+          class time, so a set stays findable long after the session that made it.</p>
+      </section>
+
+      <section id="contribute">
+        <p class="eyebrow">07 &middot; Contributing</p>
+        <h2>Contributing images</h2>
+        <p>Contributing is separate from the lab exercise. Every participant completes the
+          exercise whether or not they contribute images to the shared archive, and it is worth
+          saying so out loud before anyone submits anything.</p>
+        <p>Images are contributed under CC BY 4.0, with attribution to the module and department
+          that ran the session. To have an image removed, contact the module convenor: it is
+          withdrawn at the next rebuild, and its position is not reused.</p>
+      </section>
+
+      <section id="publishing">
+        <p class="eyebrow">08 &middot; Publishing</p>
+        <h2>Getting a collection published</h2>
+        <p>Turning a folder of contributed images into a published collection is done with a
+          separate, access-controlled builder, and the resulting files are committed to the
+          repository by hand. That step is not open to everyone.</p>
+        <p>If you have run a session and want its images published as a collection, contact the
+          module convenor. You do not need builder access to run a lab &mdash; everything in this
+          tutorial works with the public tool alone.</p>
+      </section>
+
+      <footer>
+        <p class="credit">
+          Collective Image Lab<br>
+          Made with &hearts; &amp; &#10024; by <b>Janna Joceli Omena</b><br>
+          Department of Digital Humanities, King&rsquo;s College London<br>
+          Background image: Pawe&#322; Czerwi&#324;ski, Unsplash
+        </p>
+      </footer>
+
+    </main>
+  </div>
+</div>
+
+<script>
+(function(){
+  var links = [].slice.call(document.querySelectorAll('nav a'));
+  var map = {};
+  links.forEach(function(a){ map[a.getAttribute('href').slice(1)] = a; });
+  var obs = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(!e.isIntersecting) return;
+      links.forEach(function(a){ a.classList.remove('on'); });
+      var a = map[e.target.id];
+      if(a) a.classList.add('on');
+    });
+  }, {rootMargin:'-88px 0px -60% 0px', threshold:0});
+  [].slice.call(document.querySelectorAll('section[id]')).forEach(function(s){ obs.observe(s); });
+})();
+</script>
+</body>
+</html>

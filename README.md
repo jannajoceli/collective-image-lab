@@ -11,7 +11,7 @@ Background image: Paweł Czerwiński, Unsplash.
 
 - Public lab: https://jannajoceli.github.io/collective-image-lab/
 
-# Tutorial
+### Tutorial
 
 - https://jannajoceli.github.io/collective-image-lab/tutorial.html
 

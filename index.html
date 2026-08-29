@@ -13,7 +13,7 @@
      violet = your own work and the Run action
      magenta = gradient partner only, never used alone
      azure  = anything belonging to a shared collection
-     amber  = locked and admin states                         */
+     amber  = locked collection states                        */
   --violet:#7B2FF7; --magenta:#E5147F; --azure:#1B9CD8; --amber:#F0A020;
   --azure-bg:#F0F8FC; --azure-line:#BDE0F1;
   --amber-bg:#FFF9EF; --amber-line:#F6E0BE; --amber-ink:#7A5313;
@@ -62,6 +62,13 @@ a{color:var(--violet)}
 .zone:hover{border-color:var(--violet);color:var(--ink2)}
 .zone.over{border-color:var(--magenta);background:#FEF3F8;color:var(--ink)}
 .zone b{display:block;color:var(--ink);font-size:13px;font-weight:600;margin-bottom:3px}
+.picker-row{margin-top:8px}
+.picker-row button{flex:1;min-width:120px}
+progress{width:100%;height:7px;margin:10px 0 2px;accent-color:var(--violet)}
+.file-report{margin-top:9px;border:1px solid var(--line);border-radius:8px;background:#fff;
+  padding:8px 10px;color:var(--ink2);font-size:11.5px}
+.file-report summary{cursor:pointer;color:var(--ink);font-weight:600}
+.file-report ul{margin:7px 0 0;padding-left:18px;max-height:110px;overflow:auto}
 
 .tally{display:flex;gap:14px;font-size:11.5px;color:var(--ink2);margin:10px 0}
 .tally i{font-style:normal;display:inline-flex;align-items:center;gap:6px}
@@ -202,17 +209,11 @@ canvas.drag{cursor:grabbing}
 
 <header>
   <span class="brand"><b>Collective Image Lab</b> &middot; 5AAVC200 working with data</span>
-  <div class="views">
-    <button id="vLab" class="on">Lab</button>
-    <button id="vAdmin" hidden>Admin</button>
-  </div>
 </header>
 
 <aside>
-  <div id="railLab">
-
     <div class="step">
-      <h2><span class="num az">1</span> Collection</h2>
+      <h2><span class="num az">1</span> Collections</h2>
       <p class="hint" id="collMeta">&nbsp;</p>
       <div id="collections"></div>
       <p class="hint" id="collNote" style="margin-top:10px"></p>
@@ -220,7 +221,17 @@ canvas.drag{cursor:grabbing}
 
     <div class="step">
       <h2><span class="num">2</span> Your images</h2>
-      <div class="zone" id="zone"><b>Drop image files here</b>or click to choose</div>
+      <div class="zone" id="zone"><b>Drop images or a folder here</b>or choose below</div>
+      <div class="row picker-row">
+        <button id="chooseFiles">Choose images</button>
+        <button id="chooseFolder">Choose folder</button>
+      </div>
+      <progress id="loadProgress" max="1" value="0" hidden></progress>
+      <p class="hint" id="loadState" style="margin-top:8px">Up to 500 images on one canvas.</p>
+      <details class="file-report" id="loadReport" hidden>
+        <summary id="loadReportSummary">Skipped files</summary>
+        <ul id="loadReportList"></ul>
+      </details>
       <div class="tally" id="tally" hidden>
         <i><span class="dot own"></span><span id="cntOwn">0</span> yours</i>
         <i><span class="dot shared"></span><span id="cntColl">0</span> collection</i>
@@ -239,7 +250,8 @@ canvas.drag{cursor:grabbing}
       </div>
       <button class="go" id="run">Run</button>
       <p class="hint" style="margin-top:9px">Similarity will not come out identical twice.
-      Hue, Light and Name will. That difference is the point.</p>
+      Hue, Light and Name will. Similarity supports up to 250 images; the other
+      arrangements support 500.</p>
     </div>
 
     <div class="step off" id="stepShare">
@@ -252,61 +264,6 @@ canvas.drag{cursor:grabbing}
     </div>
 
     <div class="credit">Collective Image Lab<br>Made with &hearts; &amp; &#10024; by Janna Joceli Omena<br>Department of Digital Humanities, King&rsquo;s College London</div>
-  </div>
-
-  <div id="railAdmin" hidden>
-    <div class="notice" style="margin-bottom:22px"><b>Instructor only.</b>
-    Any facilitator can build, but only one person should build at a time, and
-    only once everyone&rsquo;s images are in.</div>
-
-    <div class="step">
-      <h2><span class="num">1</span> Collection</h2>
-      <select id="collPick"></select>
-      <p class="hint" id="collState" style="margin-top:8px"></p>
-    </div>
-
-    <div class="step">
-      <h2><span class="num">2</span> Add files</h2>
-      <div class="zone" id="zoneBuild"><b>Drop collection images</b>or click to choose</div>
-      <p class="hint" id="buildLoaded" style="margin-top:9px">Nothing staged.</p>
-    </div>
-
-    <div class="step">
-      <h2><span class="num">3</span> Build</h2>
-      <label class="hint" style="display:flex;gap:8px;align-items:flex-start;margin-bottom:11px">
-        <input type="checkbox" id="lockThis" style="margin-top:2px">
-        <span>Lock this collection after building. No further images can be added
-        until it is unlocked.</span>
-      </label>
-      <button class="go" id="doBuild" disabled>Build</button>
-      <p class="hint" id="buildStatus" style="margin-top:9px"></p>
-    </div>
-
-    <div class="step" id="buildOutputs" hidden>
-      <h2>Publish</h2>
-      <div class="row" style="margin-bottom:9px">
-        <a class="btn" id="dlCollection" download>collection file</a>
-        <a class="btn" id="dlIndex" download>index.json</a>
-      </div>
-      <p class="hint">Drag both into the repo on github.com and commit &mdash;
-      collection file first, index second.</p>
-    </div>
-
-    <div class="step" style="border-top:1px solid var(--line);padding-top:20px">
-      <h2>Unlock a collection</h2>
-      <p class="hint" style="margin-bottom:10px">Unlocking reopens a closed collection
-      for additions. Deliberate action &mdash; type UNLOCK to confirm.</p>
-      <select id="unlockPick"></select>
-      <input type="text" id="unlockConfirm" placeholder="type UNLOCK" style="margin-top:7px">
-      <button id="doUnlock" disabled style="margin-top:9px;width:100%;padding:9px;
-        border-color:var(--amber-line);background:var(--amber-bg);color:var(--amber-ink)">
-        Unlock</button>
-      <p class="hint" id="unlockStatus" style="margin-top:9px"></p>
-      <div class="row" id="unlockOut" hidden style="margin-top:9px">
-        <a class="btn" id="dlIndexUnlock" download>index.json</a>
-      </div>
-    </div>
-  </div>
 </aside>
 
 <main>
@@ -318,6 +275,7 @@ canvas.drag{cursor:grabbing}
 
 <div id="detail"><img alt="" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"><div class="meta"></div></div>
 <input type="file" id="pick" accept="image/*" multiple hidden>
+<input type="file" id="pickFolder" accept="image/*" webkitdirectory directory multiple hidden>
 
 <script>
 "use strict";
@@ -325,6 +283,8 @@ canvas.drag{cursor:grabbing}
 /* ═══ EDIT THESE ═══════════════════════════════════════════════════════ */
 const PROJECT    = "5AAVC200-2026";
 const UPLOAD_URL = "https://forms.gle/5afGnXjzx4ph5Mtm6";
+const MAX_IMAGES = 500;
+const MAX_SIMILARITY = 250;
 /* ═════════════════════════════════════════════════════════════════════ */
 
 const INDEX_URL = new URLSearchParams(location.search).get("collection") || "index.json";
@@ -362,17 +322,118 @@ new ResizeObserver(resize).observe(stage);
 
 /* ── loading images ──────────────────────────────────────────────────── */
 const isImage = f => /^image\//.test(f.type) || /\.(jpe?g|png|gif|webp|bmp|avif)$/i.test(f.name);
+const loadProgress = document.getElementById("loadProgress");
+const loadState = document.getElementById("loadState");
+
+function fileLabel(file){
+  return file._cilPath || file.webkitRelativePath || file.name;
+}
+
+function rememberPath(file, path){
+  try { Object.defineProperty(file, "_cilPath", { value:path, configurable:true }); }
+  catch (err) {}
+  return file;
+}
+
+function showLoadReport(entries){
+  const box = document.getElementById("loadReport");
+  const list = document.getElementById("loadReportList");
+  const summary = document.getElementById("loadReportSummary");
+  list.innerHTML = "";
+  entries.forEach(function(entry){
+    const li = document.createElement("li");
+    li.textContent = entry;
+    list.appendChild(li);
+  });
+  box.hidden = entries.length === 0;
+  box.open = entries.length > 0;
+  summary.textContent = entries.length + " skipped file" + (entries.length === 1 ? "" : "s");
+}
+
+function walkEntry(entry, out){
+  return new Promise(function(resolve){
+    if (entry.isFile){
+      entry.file(function(file){
+        out.push(rememberPath(file, (entry.fullPath || file.name).replace(/^\//, "")));
+        resolve();
+      }, resolve);
+      return;
+    }
+    if (!entry.isDirectory){ resolve(); return; }
+    const reader = entry.createReader();
+    const children = [];
+    (function readBatch(){
+      reader.readEntries(async function(batch){
+        if (!batch.length){
+          for (const child of children) await walkEntry(child, out);
+          resolve();
+          return;
+        }
+        children.push.apply(children, batch);
+        readBatch();
+      }, resolve);
+    })();
+  });
+}
+
+async function filesFromDrop(transfer){
+  const out = [];
+  const transferItems = Array.from(transfer.items || []);
+  if (transferItems.length){
+    for (const item of transferItems){
+      if (item.kind !== "file") continue;
+      const getEntry = item.getAsEntry || item.webkitGetAsEntry;
+      const entry = getEntry ? getEntry.call(item) : null;
+      if (entry) await walkEntry(entry, out);
+      else {
+        const file = item.getAsFile && item.getAsFile();
+        if (file) out.push(file);
+      }
+    }
+  } else {
+    out.push.apply(out, Array.from(transfer.files || []));
+  }
+  return out;
+}
 
 async function addFiles(list){
-  const files = Array.from(list).filter(isImage)
+  const selected = Array.from(list);
+  const report = selected.filter(function(f){ return !isImage(f); })
+    .map(function(f){ return fileLabel(f) + " — unsupported file type"; });
+  const room = Math.max(0, MAX_IMAGES - items.length);
+  const accepted = selected.filter(isImage)
     .sort((a,b) => a.name.localeCompare(b.name, undefined, {numeric:true}));
-  if (!files.length){ say("No images in that selection."); return; }
-  let n = 0;
-  for (const f of files){
-    try { items.push(await makeItem(f, "own")); } catch(e){ console.warn(f.name, e); }
-    if (++n % 5 === 0){ say("Reading… " + n + "/" + files.length); await new Promise(r=>setTimeout(r,0)); }
+  const files = accepted.slice(0, room);
+  accepted.slice(room).forEach(function(f){
+    report.push(fileLabel(f) + " — exceeds the " + MAX_IMAGES + "-image canvas limit");
+  });
+  if (!files.length){
+    loadState.textContent = room ? "No readable images in that selection." :
+      "Canvas limit reached: " + MAX_IMAGES + " images.";
+    showLoadReport(report);
+    return;
   }
-  say("");
+  loadProgress.hidden = false;
+  loadProgress.max = files.length;
+  loadProgress.value = 0;
+  let n = 0, loaded = 0;
+  for (const f of files){
+    loadState.textContent = "Reading " + (n+1) + " of " + files.length + "…";
+    try {
+      items.push(await makeItem(f, "own"));
+      loaded++;
+    } catch(e){
+      report.push(fileLabel(f) + " — could not be decoded");
+      console.warn(fileLabel(f), e);
+    }
+    n++;
+    loadProgress.value = n;
+    if (n % 5 === 0) await new Promise(r=>setTimeout(r,0));
+  }
+  loadProgress.hidden = true;
+  loadState.textContent = loaded + " added · " + items.length + " of " + MAX_IMAGES +
+    " images on canvas" + (report.length ? " · " + report.length + " skipped" : "");
+  showLoadReport(report);
   afterItemsChanged();
 }
 
@@ -387,9 +448,13 @@ function makeItem(file, origin){
       c.height = Math.max(1, Math.round(img.naturalHeight*s));
       c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
       const st = features(c);
-      resolve({ name:file.name, origin:origin, url:url, thumb:c, w:c.width, h:c.height,
-        feat:st.vec, hue:st.hue, lum:st.lum,
-        cur:{x:Math.random()*WORLD, y:Math.random()*WORLD}, tgt:{x:0, y:0} });
+      c.toBlob(function(blob){
+        URL.revokeObjectURL(url);
+        if (!blob){ reject(new Error("preview encode failed")); return; }
+        resolve({ name:fileLabel(file), origin:origin, url:URL.createObjectURL(blob),
+          thumb:c, w:c.width, h:c.height, feat:st.vec, hue:st.hue, lum:st.lum,
+          cur:{x:Math.random()*WORLD, y:Math.random()*WORLD}, tgt:{x:0, y:0} });
+      }, "image/jpeg", 0.78);
     };
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("decode failed")); };
     img.src = url;
@@ -404,6 +469,11 @@ function afterItemsChanged(){
   document.getElementById("tally").hidden = items.length === 0;
   document.getElementById("clear").disabled = items.length === 0;
   document.getElementById("stepRun").classList.toggle("off", items.length === 0);
+  const sim = document.querySelector('button[data-mode="similarity"]');
+  const overSimilarity = items.length > MAX_SIMILARITY;
+  sim.disabled = overSimilarity;
+  sim.title = overSimilarity ? "Similarity supports up to " + MAX_SIMILARITY + " images." : "";
+  if (overSimilarity && mode === "similarity") setMode("hue");
   if (items.length) emptyEl.textContent = "Press Run to arrange them.";
 }
 
@@ -576,6 +646,11 @@ const LEGEND = {
 
 async function buildLayout(which){
   if (!items.length) return;
+  if (which === "similarity" && items.length > MAX_SIMILARITY){
+    say("Similarity supports up to " + MAX_SIMILARITY +
+      " images. Choose Hue, Light, or Name for larger canvases.");
+    return;
+  }
   if (which === "hue"){
     layoutCache.hue = gridFromOrder(items.map((_,i)=>i)
       .sort((a,b) => items[a].hue - items[b].hue || items[a].lum - items[b].lum));
@@ -712,21 +787,35 @@ document.getElementById("clear").addEventListener("click", function(){
   document.getElementById("stepShare").classList.add("off");
   emptyEl.textContent = "Load a collection, or drop your own images, then press Run.";
   emptyEl.classList.remove("hide");
+  loadState.textContent = "Up to " + MAX_IMAGES + " images on one canvas.";
+  showLoadReport([]);
 });
 
 const zone = document.getElementById("zone"), pick = document.getElementById("pick");
+const pickFolder = document.getElementById("pickFolder");
 zone.addEventListener("click", function(){ pick.click(); });
-pick.addEventListener("change", function(e){ addFiles(e.target.files); });
+document.getElementById("chooseFiles").addEventListener("click", function(){ pick.click(); });
+document.getElementById("chooseFolder").addEventListener("click", function(){ pickFolder.click(); });
+pick.addEventListener("change", async function(e){
+  await addFiles(e.target.files);
+  e.target.value = "";
+});
+pickFolder.addEventListener("change", async function(e){
+  await addFiles(e.target.files);
+  e.target.value = "";
+});
 ["dragenter","dragover"].forEach(function(ev){
   window.addEventListener(ev, function(e){
     e.preventDefault();
-    if (!document.getElementById("railLab").hidden) zone.classList.add("over");
+    zone.classList.add("over");
   });
 });
 window.addEventListener("dragleave", function(){ zone.classList.remove("over"); });
-window.addEventListener("drop", function(e){
+window.addEventListener("drop", async function(e){
   e.preventDefault(); zone.classList.remove("over");
-  if (!document.getElementById("railLab").hidden) addFiles(e.dataTransfer.files);
+  loadState.textContent = "Reading dropped files and folders…";
+  try { await addFiles(await filesFromDrop(e.dataTransfer)); }
+  catch (err){ loadState.textContent = "Could not read that drop. Try Choose folder instead."; }
 });
 
 document.getElementById("expPng").addEventListener("click", function(){
@@ -774,7 +863,7 @@ function collectionTimeText(c){
 
 function collectionTitle(c){
   const stamp = collectionTimeText(c);
-  return stamp ? "Collection · " + stamp : (c.title || c.id);
+  return c.title || (stamp ? "Collection · " + stamp : c.id);
 }
 
 function collectionsByCreation(){
@@ -783,10 +872,6 @@ function collectionsByCreation(){
     const diff = (bt ? bt.getTime() : 0) - (at ? at.getTime() : 0);
     return diff || String(b.id).localeCompare(String(a.id));
   });
-}
-
-function newCollectionId(created){
-  return created.replace(/[-:.]/g, "");
 }
 
 async function loadIndex(){
@@ -849,17 +934,38 @@ async function selectAndLoad(c){
   renderCollections();
   renderDonate();
   say('Loading "' + collectionTitle(c) + '"…');
+  const report = [];
+  let loaded = 0, seen = 0;
   try {
-    const res = await fetch(BASE + c.file + "?v=" + encodeURIComponent(c.updated),
-      { cache: c.locked ? "force-cache" : "default" });
-    const bundle = await res.json();
-    for (const im of bundle.images){
-      const blob = await (await fetch(im.data)).blob();
-      items.push(await makeItem(
-        new File([blob], c.id + "/" + im.name, { type:"image/jpeg" }), "collection"));
+    const files = Array.isArray(c.files) && c.files.length ? c.files : [c.file];
+    outer: for (const filename of files){
+      const res = await fetch(BASE + filename + "?v=" + encodeURIComponent(c.updated),
+        { cache: c.locked ? "force-cache" : "default" });
+      const bundle = await res.json();
+      for (const im of bundle.images || []){
+        seen++;
+        if (items.length >= MAX_IMAGES){
+          report.push("Collection stopped at the " + MAX_IMAGES + "-image canvas limit.");
+          break outer;
+        }
+        say("Loading collection… " + seen + "/" + c.count);
+        try {
+          const blob = await (await fetch(im.data)).blob();
+          items.push(await makeItem(
+            new File([blob], c.id + "/" + im.name, { type:"image/jpeg" }), "collection"));
+          loaded++;
+        } catch (err){
+          report.push((im.name || "unnamed image") + " — could not be decoded");
+        }
+        if (seen % 5 === 0) await new Promise(r=>setTimeout(r,0));
+      }
     }
     say("");
     loadedIds.add(c.id);
+    loadState.textContent = loaded + " collection images added · " + items.length +
+      " of " + MAX_IMAGES + " images on canvas" +
+      (report.length ? " · " + report.length + " warning" + (report.length === 1 ? "" : "s") : "");
+    showLoadReport(report);
     renderCollections();
     afterItemsChanged();
   } catch (err) {
@@ -893,262 +999,6 @@ function escapeHtml(s){
   });
 }
 
-/* ── admin ───────────────────────────────────────────────────────────── */
-const railLab = document.getElementById("railLab");
-const railAdmin = document.getElementById("railAdmin");
-const isAdmin = new URLSearchParams(location.search).get("admin") === "1" ||
-                new URLSearchParams(location.search).get("build") === "1";
-if (isAdmin) document.getElementById("vAdmin").hidden = false;
-
-function showRail(btn, which){
-  document.querySelectorAll(".views button").forEach(function(b){ b.classList.remove("on"); });
-  btn.classList.add("on");
-  railLab.hidden = which !== "lab";
-  railAdmin.hidden = which !== "admin";
-}
-document.getElementById("vLab").addEventListener("click", function(e){
-  showRail(e.target, "lab");
-});
-document.getElementById("vAdmin").addEventListener("click", async function(e){
-  showRail(e.target, "admin");
-  indexData = await fetchIndex();
-  populatePickers();
-});
-
-function populatePickers(preferredId){
-  const sel = document.getElementById("collPick");
-  const previous = preferredId || sel.value || "__new__";
-  sel.innerHTML = "";
-  sel.add(new Option("New collection", "__new__"));
-  collectionsByCreation().forEach(function(c){
-    sel.add(new Option(collectionTimeText(c) || collectionTitle(c), c.id));
-  });
-  sel.value = collById(previous) ? previous : "__new__";
-  sel.onchange = showCollState;
-  showCollState();
-  const un = document.getElementById("unlockPick");
-  const locked = collectionsByCreation().filter(function(c){ return c.locked; });
-  un.innerHTML = "";
-  if (locked.length){
-    locked.forEach(function(c){
-      un.add(new Option(collectionTimeText(c) || collectionTitle(c), c.id));
-    });
-  } else {
-    un.add(new Option("no locked collections", ""));
-  }
-  un.disabled = locked.length === 0;
-}
-
-function showCollState(){
-  const meta = adminCollection();
-  if (meta.isNew){
-    document.getElementById("collState").textContent =
-      "A creation time and collection ID will be added when you build.";
-    document.getElementById("collState").style.color = "var(--dim)";
-    return;
-  }
-  const c = collById(meta.id);
-  const el = document.getElementById("collState");
-  if (!c){ el.textContent = "New — nothing published yet."; return; }
-  el.textContent = c.count + " images · created " + (collectionTimeText(c) || "unknown") +
-    " · last built " + (c.updated || "").slice(0,16) +
-    (c.locked ? " · LOCKED" : "");
-  el.style.color = c.locked ? "var(--amber-ink)" : "var(--dim)";
-}
-
-function adminCollection(){
-  const sel = document.getElementById("collPick").value;
-  if (sel === "__new__") return { isNew:true };
-  return collById(sel) || { id:sel, title:sel };
-}
-
-async function sha1(buf){
-  const h = await crypto.subtle.digest("SHA-1", buf);
-  return Array.from(new Uint8Array(h)).map(function(b){
-    return b.toString(16).padStart(2, "0");
-  }).join("");
-}
-
-let buildFiles = [];
-const zoneBuild = document.getElementById("zoneBuild");
-zoneBuild.addEventListener("click", function(){
-  const inp = document.createElement("input");
-  inp.type = "file"; inp.multiple = true; inp.accept = "image/*";
-  inp.onchange = function(e){ stageBuildFiles(e.target.files); };
-  inp.click();
-});
-["dragenter","dragover"].forEach(function(ev){
-  zoneBuild.addEventListener(ev, function(e){
-    e.preventDefault(); e.stopPropagation(); zoneBuild.classList.add("over");
-  });
-});
-zoneBuild.addEventListener("dragleave", function(){ zoneBuild.classList.remove("over"); });
-zoneBuild.addEventListener("drop", function(e){
-  e.preventDefault(); e.stopPropagation(); zoneBuild.classList.remove("over");
-  stageBuildFiles(e.dataTransfer.files);
-});
-let buildPending = false;
-function stageBuildFiles(list){
-  buildFiles = Array.from(list).filter(isImage);
-  const el = document.getElementById("buildLoaded");
-  if (buildPending){
-    el.textContent = "Publish and reload before building again.";
-    return;
-  }
-  el.textContent = buildFiles.length + " images staged.";
-  document.getElementById("doBuild").disabled = buildFiles.length === 0;
-}
-
-async function encodeCapped(file, maxSide, quality){
-  if (maxSide === undefined) maxSide = 800;
-  if (quality === undefined) quality = 0.8;
-  const url = URL.createObjectURL(file);
-  const img = new Image();
-  img.src = url;
-  await img.decode();
-  const s = Math.min(1, maxSide/Math.max(img.naturalWidth, img.naturalHeight));
-  const c = document.createElement("canvas");
-  c.width = Math.max(1, Math.round(img.naturalWidth*s));
-  c.height = Math.max(1, Math.round(img.naturalHeight*s));
-  c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
-  URL.revokeObjectURL(url);
-  return { w:c.width, h:c.height, data:c.toDataURL("image/jpeg", quality) };
-}
-
-async function fetchIndex(){
-  try {
-    const r = await fetch(INDEX_URL + "?t=" + Date.now(), { cache:"no-store" });
-    const j = await r.json();
-    if (!j.collections && j.sessions) j.collections = j.sessions;
-    return j;
-  } catch (err) {
-    return { format:"dm-collection-index/1", project:PROJECT, title:"",
-             total:0, collections:[] };
-  }
-}
-
-document.getElementById("doBuild").addEventListener("click", async function(){
-  const bstat = document.getElementById("buildStatus");
-  const picked = adminCollection();
-
-  bstat.textContent = "Fetching current index…";
-  const index = await fetchIndex();
-  indexData = index;
-
-  const now = new Date().toISOString();
-  const meta = picked.isNew ? {
-    id:newCollectionId(now), created:now
-  } : (collById(picked.id) || picked);
-  const cid = meta.id;
-  const created = meta.created || meta.updated || now;
-  const title = collectionTitle(Object.assign({}, meta, { created:created }));
-  if (!cid){ bstat.textContent = "Choose a collection first."; return; }
-
-  const existing = collById(cid);
-  if (existing && existing.locked){
-    bstat.textContent = '"' + title + '" is locked. Unlock it below before building.';
-    return;
-  }
-
-  let prev = { images:[] };
-  if (existing){
-    try {
-      const r = await fetch(BASE + existing.file + "?v=" + encodeURIComponent(existing.updated));
-      prev = await r.json();
-    } catch (err) {}
-  }
-
-  const known = new Set(prev.images.map(function(im){ return im.hash; }));
-  let nextId = 1 + Math.max.apply(null,
-    [0, index._maxId || 0].concat(prev.images.map(function(im){ return im.id; })));
-
-  const fresh = [];
-  for (let i = 0; i < buildFiles.length; i++){
-    bstat.textContent = "Processing " + (i+1) + "/" + buildFiles.length + "…";
-    await new Promise(function(r){ setTimeout(r, 0); });
-    const hash = await sha1(await buildFiles[i].arrayBuffer());
-    if (known.has(hash)) continue;
-    known.add(hash);
-    const enc = await encodeCapped(buildFiles[i]);
-    fresh.push({ id:nextId++, name:buildFiles[i].name, hash:hash,
-      w:enc.w, h:enc.h, data:enc.data });
-  }
-
-  const all = prev.images.concat(fresh);
-  const locked = document.getElementById("lockThis").checked;
-  const bundle = { format:"dm-collection/1", project:PROJECT, collection:cid,
-    title:title, created:created, updated:now, images:all };
-  const sizeMb = Number((JSON.stringify(bundle).length/1e6).toFixed(2));
-
-  const rest = collList().filter(function(c){ return c.id !== cid; });
-  const idx = Object.assign({}, index, {
-    format:"dm-collection-index/1", project:PROJECT, _maxId:nextId-1,
-    licence:index.licence || { type:"CC BY 4.0",
-      statement:"Images donated by students to this open teaching collection." },
-    collections: rest.concat([{ id:cid, title:title, file:"collection-" + cid + ".json",
-      count:all.length, size_mb:sizeMb, created:created, updated:now, locked:locked }])
-      .sort(function(a,b){
-        const at = collectionTime(a), bt = collectionTime(b);
-        const diff = (bt ? bt.getTime() : 0) - (at ? at.getTime() : 0);
-        return diff || String(b.id).localeCompare(String(a.id));
-      })
-  });
-  delete idx.sessions;
-  idx.total = idx.collections.reduce(function(n,c){ return n + c.count; }, 0);
-
-  offerDownload("dlCollection", "collection-" + cid + ".json", bundle);
-  offerDownload("dlIndex", "index.json", idx);
-  document.getElementById("buildOutputs").hidden = false;
-  bstat.innerHTML = "Done — " + fresh.length + " new, " + all.length +
-    ' total in "' + escapeHtml(title) + '"' + (locked ? ", now locked." : ".") +
-    '<br><b style="color:var(--amber-ink)">Publish both files and reload this page ' +
-    'before building again.</b>';
-  // Another build now would run against the published index, which no longer
-  // matches what is on disk. Blocking until reload also keeps two leads
-  // building in the same hour from overwriting each other.
-  buildPending = true;
-  document.getElementById("doBuild").disabled = true;
-  buildFiles = [];
-  document.getElementById("buildLoaded").textContent = "Publish and reload before building again.";
-  indexData = idx;
-  populatePickers(cid);
-});
-
-const unlockConfirm = document.getElementById("unlockConfirm");
-unlockConfirm.addEventListener("input", function(){
-  document.getElementById("doUnlock").disabled =
-    unlockConfirm.value.trim().toUpperCase() !== "UNLOCK" ||
-    !document.getElementById("unlockPick").value;
-});
-
-document.getElementById("doUnlock").addEventListener("click", async function(){
-  const cid = document.getElementById("unlockPick").value;
-  const st = document.getElementById("unlockStatus");
-  if (!cid) return;
-  st.textContent = "Fetching current index…";
-  const index = await fetchIndex();
-  const target = (index.collections || []).filter(function(c){ return c.id === cid; })[0];
-  if (!target){ st.textContent = "That collection is not in the published index."; return; }
-  target.locked = false;
-  delete index.sessions;
-  offerDownload("dlIndexUnlock", "index.json", index);
-  document.getElementById("unlockOut").hidden = false;
-  st.textContent = '"' + collectionTitle(target) + '" unlocked. Commit index.json to apply it.';
-  unlockConfirm.value = "";
-  document.getElementById("doUnlock").disabled = true;
-  indexData = index;
-  populatePickers();
-  renderCollections();
-  renderDonate();
-});
-
-function offerDownload(id, filename, obj){
-  const a = document.getElementById(id);
-  a.href = URL.createObjectURL(new Blob([JSON.stringify(obj)], { type:"application/json" }));
-  a.download = filename;
-  a.textContent = filename;
-}
-
 /* ── landing ─────────────────────────────────────────────────────────────
    An animated fractal-noise displacement makes the poured paint appear to
    keep flowing; the image also drifts slowly beneath it. On exit the
@@ -1172,8 +1022,6 @@ function offerDownload(id, filename, obj){
       requestAnimationFrame(function(){ el.remove(); resize(); });
     });
   }
-  if (isAdmin){ dismiss(); return; }
-
   /* The flow is driven from requestAnimationFrame rather than SMIL <animate>.
      Safari's SMIL support for feTurbulence is unreliable and it tends to
      rasterise a filtered element once and never repaint it, which leaves the

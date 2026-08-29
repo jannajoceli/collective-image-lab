@@ -126,16 +126,18 @@ canvas.drag{cursor:grabbing}
    a filtered element with its own transform animation gets promoted to a
    composited layer whose filtered output is rasterised once, so the noise
    animation stops repainting and the paint looks frozen. */
-#marbleWrap{position:absolute;inset:0;overflow:hidden;
-  animation:slowdrift 22s ease-in-out infinite alternate}
-/* Begins right and travels left. scale(1.2) leaves 10% headroom either side,
-   so a 5% translate never exposes an edge. */
+#marbleWrap{position:absolute;inset:0;overflow:hidden;transform-origin:50% 50%;
+  will-change:transform;animation:slowdrift 30s cubic-bezier(.45,.05,.55,.95) infinite alternate}
+/* A broad downward pour rather than a simple sideways pan. The generous scale
+   leaves enough image outside the frame for the paint to move without exposing
+   an edge. */
 @keyframes slowdrift{
-  from{transform:scale(1.2) translate(5%,-1.5%)}
-  to  {transform:scale(1.2) translate(-5%,1.5%)}
+  0%  {transform:scale(1.28) translate3d(4%,-5%,0)}
+  50% {transform:scale(1.24) translate3d(-1%,0%,0)}
+  100%{transform:scale(1.20) translate3d(-4%,5%,0)}
 }
 #marble{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
-  object-position:60% 40%;filter:url(#flowWaves)}
+  object-position:60% 40%;filter:url(#flowWaves);will-change:filter,opacity}
 @media (prefers-reduced-motion: reduce){#marbleWrap{animation:none}}
 #bottomFade{position:absolute;left:0;right:0;bottom:0;height:160px;
   background:linear-gradient(to top,rgba(250,250,248,.75),rgba(250,250,248,0))}
@@ -166,10 +168,10 @@ canvas.drag{cursor:grabbing}
 
 <div id="landing">
   <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
-    <filter id="flowWaves" x="-10%" y="-10%" width="120%" height="120%">
-      <feTurbulence id="flowTurb" type="fractalNoise" baseFrequency="0.006 0.009"
+    <filter id="flowWaves" x="-18%" y="-18%" width="136%" height="136%">
+      <feTurbulence id="flowTurb" type="fractalNoise" baseFrequency="0.0047 0.0072"
                     numOctaves="2" seed="4" result="noise"/>
-      <feDisplacementMap id="flowDisp" in="SourceGraphic" in2="noise" scale="40"
+      <feDisplacementMap id="flowDisp" in="SourceGraphic" in2="noise" scale="66"
                          xChannelSelector="R" yChannelSelector="G"/>
     </filter>
   </defs></svg>
@@ -596,7 +598,7 @@ async function buildLayout(which){
     const S = tsnePrepare(items.map(it => it.feat));
     const job = tsneJob = { cancelled:false };
     const TOTAL = 500;
- (let i = 0; i < TOTAL; i++){
+    for (let i = 0; i < TOTAL; i++){
       tsneStep(S, i);
       if (i % 6 === 0){
         applyLayout(normalise(S.Y));
@@ -1142,10 +1144,12 @@ function offerDownload(id, filename, obj){
 
   function flow(now){
     const t = ((now || performance.now()) - t0)/1000;
-    const fx = 0.0068 + 0.0026*Math.sin(t*TAU/17);
-    const fy = 0.0090 + 0.0032*Math.sin(t*TAU/23 + 1.7);
+    // Low-frequency, broad deformation reads as viscous paint rather than
+    // digital shimmer. The wrapper supplies the slow downward pour.
+    const fx = 0.0047 + 0.0016*Math.sin(t*TAU/21);
+    const fy = 0.0072 + 0.0022*Math.sin(t*TAU/27 + 1.7);
     turb.setAttribute("baseFrequency", fx.toFixed(5) + " " + fy.toFixed(5));
-    disp.setAttribute("scale", (46 + 22*Math.sin(t*TAU/13)).toFixed(1));
+    disp.setAttribute("scale", (66 + 28*Math.sin(t*TAU/18)).toFixed(1));
     flowRaf = requestAnimationFrame(flow);
   }
 
@@ -1175,7 +1179,7 @@ function offerDownload(id, filename, obj){
       // rAF timestamps mark the start of the frame, which can predate s0 —
       // without the lower clamp p goes negative and opacity exceeds 1.
       const p = Math.max(0, Math.min(1, ((now || performance.now()) - s0)/DUR));
-      disp.setAttribute("scale", String(46 + p*p*280));
+      disp.setAttribute("scale", String(66 + p*p*280));
       img.style.opacity = String(1 - p);
       if (p < 1){ meltRaf = requestAnimationFrame(melt); }
       else { if (meltRaf) cancelAnimationFrame(meltRaf); dismiss(); }

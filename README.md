@@ -11,6 +11,10 @@ Background image: Paweł Czerwiński, Unsplash.
 
 - Public lab: https://jannajoceli.github.io/collective-image-lab/
 
+# Tutorial
+
+- https://jannajoceli.github.io/collective-image-lab/tutorial.html
+
 ## Capacity
 
 The recommended supported capacity is **500 images per collection/canvas**:

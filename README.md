@@ -10,11 +10,6 @@ Background image: Paweł Czerwiński, Unsplash.
 ## URLs
 
 - Public lab: https://jannajoceli.github.io/collective-image-lab/
-- Private collection builder:
-  https://collective-image-lab.jannajoceli.chatgpt.site
-
-The collection builder is deliberately separate from GitHub Pages and restricted
-to the instructor's authorised account.
 
 ## Capacity
 
@@ -23,11 +18,11 @@ The recommended supported capacity is **500 images per collection/canvas**:
 - **Hue:** up to 500.
 - **Similarity:** exact t-SNE up to 250. Above that, the interface explains
   that the quadratic calculation is too heavy and asks users to use Hue.
-- **Admin Builder:** up to 500, with automatic JSON chunking below 20 MiB per
-  file so GitHub's 25 MiB browser-upload limit is respected.
+- **Lab uploads:** multiple selected files or a selected/dropped folder, up to
+  500 images on one canvas.
 
-Both the Lab and private Admin Builder accept multiple files, selected folders,
-and folders dropped from the desktop.
+JPEG, PNG, WebP and GIF files are accepted. GIF animations remain animated for
+viewing; Hue and Similarity are calculated from a representative static frame.
 
 ## How a seminar collection becomes shared
 
@@ -35,28 +30,9 @@ Each participant's Lab runs only in that participant's browser. The seminar lead
 cannot automatically access those local images. Participants must submit their
 chosen originals through the donation form (or send them to the lead by another
 agreed method). At the end of the session, the lead downloads the submissions
-into one folder, opens the private Admin Builder, builds the collection, and
-uploads the generated collection JSON file(s) plus `index.json` to this
-repository. The public **Collections** view then lists the published collection.
-
-## Weekly workflow
-1. Download the images students uploaded to the shared link.
-2. Open the private collection builder.
-3. Choose **New collection**, enter a distinctive collection name, drop the
-   images in, and press **Build collection files**.
-4. Download every collection part plus `index.json`.
-5. Open the repository root:
-   https://github.com/jannajoceli/collective-image-lab
-6. Select **Add file → Upload files**, upload every generated collection file
-   and the replacement `index.json` alongside `index.html`, then select
-   **Commit changes**.
-   Large collections are split into parts below 20 MiB so each part remains
-   under GitHub's browser-upload limit.
-7. Refresh the public Lab and select the collection by name. Allow a minute or
-   two for GitHub Pages to update.
-8. Reload the private builder before building again.
+into one folder and passes it through the authorised publication workflow. The
+public **Collections** view then lists the published collection.
 
 New collections receive a timestamp ID automatically, while the chosen name is
-shown in the public collection browser. Creation time remains stored in the
-generated JSON, so the list stays chronological without being tied to lab days
-or class times.
+shown in the public collection browser. Collections are ordered by creation
+time, newest first, without being tied to lab days or class times.

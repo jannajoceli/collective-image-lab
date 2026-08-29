@@ -76,6 +76,8 @@ progress{width:100%;height:7px;margin:10px 0 2px;accent-color:var(--violet)}
 .dot.own{background:var(--violet)} .dot.shared{background:var(--azure)}
 
 #collections{display:flex;flex-direction:column;gap:7px}
+#collSearch{margin:0 0 8px}
+#collMore{width:100%;margin-top:8px}
 .coll{border:1px solid var(--line);background:#fff;border-radius:9px;padding:9px 11px;
   cursor:pointer;transition:.15s;display:flex;align-items:center;gap:9px}
 .coll:hover{border-color:var(--azure)}
@@ -219,7 +221,9 @@ canvas.drag{cursor:grabbing}
     <div class="step" id="collectionSource" hidden>
       <h2><span class="num az">1</span> Collections</h2>
       <p class="hint" id="collMeta">&nbsp;</p>
+      <input type="text" id="collSearch" placeholder="Search collections" aria-label="Search collections" hidden>
       <div id="collections"></div>
+      <button id="collMore" hidden>Show all collections</button>
       <p class="hint" id="collNote" style="margin-top:10px"></p>
     </div>
 
@@ -249,6 +253,10 @@ canvas.drag{cursor:grabbing}
       <div class="row" style="margin-bottom:11px">
         <button data-mode="similarity">Similarity</button>
         <button data-mode="hue">Hue</button>
+      </div>
+      <div class="notice" id="simLimit" hidden style="margin-bottom:11px">
+        <b>Similarity unavailable for this collection.</b> Exact t-SNE supports
+        up to 250 images. Use Hue instead.
       </div>
       <button class="go" id="run">Run</button>
       <p class="hint" style="margin-top:9px">Similarity will not come out identical twice.
@@ -297,6 +305,7 @@ let mode = "similarity", tileSize = 100, layoutCache = {}, tsneJob = null;
 let indexData = null, selectedId = null;
 const loadedIds = new Set();
 let publicView = "lab";
+let showAllCollections = false;
 const view = { k:1, x:0, y:0 };
 
 const cv = document.getElementById("cv");
@@ -469,6 +478,14 @@ function makeItem(file, origin){
       c.height = Math.max(1, Math.round(img.naturalHeight*s));
       c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
       const st = features(c);
+      const animated = file.type === "image/gif" || /\.gif$/i.test(file.name);
+      if (animated){
+        resolve({ name:fileLabel(file), origin:origin, url:url,
+          thumb:img, w:c.width, h:c.height, feat:st.vec, hue:st.hue, lum:st.lum,
+          animated:true, cur:{x:Math.random()*WORLD, y:Math.random()*WORLD},
+          tgt:{x:0, y:0} });
+        return;
+      }
       c.toBlob(function(blob){
         URL.revokeObjectURL(url);
         if (!blob){ reject(new Error("preview encode failed")); return; }
@@ -494,6 +511,7 @@ function afterItemsChanged(){
   const overSimilarity = items.length > MAX_SIMILARITY;
   sim.disabled = overSimilarity;
   sim.title = overSimilarity ? "Similarity supports up to " + MAX_SIMILARITY + " images." : "";
+  document.getElementById("simLimit").hidden = !overSimilarity;
   if (overSimilarity && mode === "similarity") setMode("hue");
   if (items.length) emptyEl.textContent = "Press Run to arrange them.";
 }
@@ -925,7 +943,19 @@ async function loadIndex(){
 function renderCollections(){
   const list = document.getElementById("collections");
   list.innerHTML = "";
-  collectionsByCreation().forEach(function(c){
+  const all = collectionsByCreation();
+  const search = document.getElementById("collSearch");
+  const more = document.getElementById("collMore");
+  const query = search.value.trim().toLocaleLowerCase();
+  const matching = query ? all.filter(function(c){
+    return (collectionTitle(c) + " " + collectionTimeText(c)).toLocaleLowerCase().includes(query);
+  }) : all;
+  const visible = query || showAllCollections ? matching : matching.slice(0, 6);
+  search.hidden = all.length <= 6;
+  more.hidden = all.length <= 6 || !!query;
+  more.textContent = showAllCollections ? "Show recent collections" :
+    "Show all " + all.length + " collections";
+  visible.forEach(function(c){
     const el = document.createElement("div");
     el.className = "coll" + (c.id === selectedId ? " on" : "") +
       (loadedIds.has(c.id) ? " loaded" : "");
@@ -948,7 +978,19 @@ function renderCollections(){
     }
     list.appendChild(el);
   });
+  if (!visible.length){
+    const empty = document.createElement("p");
+    empty.className = "hint";
+    empty.textContent = "No collections match that search.";
+    list.appendChild(empty);
+  }
 }
+
+document.getElementById("collSearch").addEventListener("input", renderCollections);
+document.getElementById("collMore").addEventListener("click", function(){
+  showAllCollections = !showAllCollections;
+  renderCollections();
+});
 
 async function selectAndLoad(c){
   selectedId = c.id;
@@ -973,7 +1015,7 @@ async function selectAndLoad(c){
         try {
           const blob = await (await fetch(im.data)).blob();
           items.push(await makeItem(
-            new File([blob], c.id + "/" + im.name, { type:"image/jpeg" }), "collection"));
+            new File([blob], c.id + "/" + im.name, { type:blob.type || im.mime || "image/jpeg" }), "collection"));
           loaded++;
         } catch (err){
           report.push((im.name || "unnamed image") + " — could not be decoded");

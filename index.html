@@ -332,7 +332,7 @@ const COLLECTIONS = [
 ];
 /* ═════════════════════════════════════════════════════════════════════ */
 
-const INDEX_URL = new URLSearchParams(location.search).get("collection") || "";
+const INDEX_URL = new URLSearchParams(location.search).get("collection") || "index.json";
 const BASE = INDEX_URL ? INDEX_URL.replace(/[^/]+$/, "") : "";
 
 const WORLD = 2400;
@@ -596,7 +596,7 @@ async function buildLayout(which){
     const S = tsnePrepare(items.map(it => it.feat));
     const job = tsneJob = { cancelled:false };
     const TOTAL = 500;
-    for (let i = 0; i < TOTAL; i++){
+const INDEX_URL    for (let i = 0; i < TOTAL; i++){
       tsneStep(S, i);
       if (i % 6 === 0){
         applyLayout(normalise(S.Y));

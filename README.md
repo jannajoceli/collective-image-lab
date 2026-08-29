@@ -1,6 +1,6 @@
 # Collective Image Lab
 
-Browser tool for the 5AAVC200 Digital Methods Labs, King's College London.
+Browser tool for the Digital Methods Labs, King's College London.
 Students load a published collection, add their own images, and arrange them.
 Everything runs client-side; nothing is uploaded by the page itself.
 

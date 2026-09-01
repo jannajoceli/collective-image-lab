@@ -1608,28 +1608,41 @@ async function selectAndLoad(c){
   say('Loading "' + collectionTitle(c) + '"…');
   const report = [];
   let loaded = 0, seen = 0;
+  const LOAD_CONCURRENCY = 6; // fetch several thumbnails in parallel instead of one at a time
   try {
     const files = Array.isArray(c.files) && c.files.length ? c.files : [c.file];
     outer: for (const filename of files){
       const res = await fetch(BASE + filename + "?v=" + encodeURIComponent(c.updated),
         { cache: c.locked ? "force-cache" : "default" });
       const bundle = await res.json();
-      for (const im of bundle.images || []){
-        seen++;
+      const images = bundle.images || [];
+      for (let i = 0; i < images.length; i += LOAD_CONCURRENCY){
         if (items.length >= MAX_IMAGES){
           report.push("Collection stopped at the " + MAX_IMAGES + "-image canvas limit.");
           break outer;
         }
-        say("Loading collection… " + seen + "/" + c.count);
-        try {
-          const blob = await (await fetch(im.data)).blob();
-          items.push(await makeItem(
-            new File([blob], c.id + "/" + im.name, { type:blob.type || im.mime || "image/jpeg" }), "collection"));
-          loaded++;
-        } catch (err){
-          report.push((im.name || "unnamed image") + " — could not be decoded");
+        const batch = images.slice(i, i + LOAD_CONCURRENCY);
+        say("Loading collection… " + Math.min(seen + batch.length, c.count) + "/" + c.count);
+        const results = await Promise.all(batch.map(async (im) => {
+          seen++;
+          try {
+            const blob = await (await fetch(im.data)).blob();
+            const item = await makeItem(
+              new File([blob], c.id + "/" + im.name, { type: blob.type || im.mime || "image/jpeg" }), "collection");
+            return { ok: true, item };
+          } catch (err){
+            return { ok: false, name: im.name };
+          }
+        }));
+        for (const r of results){
+          if (items.length >= MAX_IMAGES){
+            report.push("Collection stopped at the " + MAX_IMAGES + "-image canvas limit.");
+            break outer;
+          }
+          if (r.ok){ items.push(r.item); loaded++; }
+          else { report.push((r.name || "unnamed image") + " — could not be decoded"); }
         }
-        if (seen % 5 === 0) await new Promise(r=>setTimeout(r,0));
+        await new Promise(r=>setTimeout(r,0));
       }
     }
     say("");

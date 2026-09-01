@@ -103,13 +103,12 @@ This can make colour patterns, repetitions, transitions and contrasts within a c
 
 The arrangements should be understood as different ways of *making a collection observable*:
 
-| Arrangement    | Organising principle                                    | Useful for exploring                                                |
-| -------------- | -------------------------------------------------------- | -------------------------------------------------------------------- |
-| **Similarity** | Relationships between colour/pixel-based representations | Neighbourhoods, clusters, colour-driven visual affinities, outliers  |
-| **Content**    | Relationships between MobileNet content embeddings        | Neighbourhoods based on subject and composition, independent of colour |
-| **Hue**        | Colour hue                                                | Colour patterns, gradients, repetition and contrast                  |
+| Arrangement    | Organising principle                                    | Useful for exploring                                                | Max images |
+| -------------- | -------------------------------------------------------- | -------------------------------------------------------------------- | ---------- |
+| **Similarity** | Relationships between colour/pixel-based representations | Neighbourhoods, clusters, colour-driven visual affinities, outliers  | 250        |
+| **Content**    | Relationships between MobileNet content embeddings        | Neighbourhoods based on subject and composition, independent of colour | 250        |
+| **Hue**        | Colour hue                                                | Colour patterns, gradients, repetition and contrast                  | 500        |
 
-None of the three arrangements reveals the single or "correct" structure of an image collection. Each foregrounds particular properties of the images while making others less visible. Switching between them — and noticing where Similarity and Content disagree about who counts as a neighbour — is therefore part of the analysis.
 
 ### References
 

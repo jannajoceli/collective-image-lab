@@ -52,7 +52,7 @@ button,.btn{background:#fff;color:var(--ink);border:1px solid var(--line2);borde
 button:hover,.btn:hover{border-color:var(--ink2)}
 button:disabled{opacity:.45;cursor:default;border-color:var(--line)}
 .views button.on{background:var(--ink);border-color:var(--ink);color:#fff}
-button[data-mode]{flex:0 0 calc(50% - 3px);min-width:0;text-align:center;padding:8px 6px}
+button[data-mode]{flex:0 0 calc(33.333% - 4px);min-width:0;text-align:center;padding:8px 6px}
 button[data-mode].on{background:var(--violet);border-color:var(--violet);color:#fff}
 .go{width:100%;padding:11px;font-size:13px;font-weight:600;color:#fff;border:0;
   background:linear-gradient(90deg,var(--violet),var(--magenta));
@@ -379,15 +379,19 @@ canvas.drag{cursor:grabbing}
       <p>Choose how images should be positioned, then run the method.</p>
       <div class="row" style="margin-bottom:11px">
         <button data-mode="similarity">Similarity</button>
+        <button data-mode="content">Content</button>
         <button data-mode="hue">Hue</button>
       </div>
       <div class="notice" id="simLimit" hidden style="margin-bottom:11px">
-        <b>Similarity unavailable for this collection.</b> Exact t-SNE supports
-        up to 250 images. Use Hue instead.
+        <b>Similarity and Content are unavailable for this collection.</b> Exact
+        t-SNE supports up to 250 images. Use Hue instead.
       </div>
       <button class="go" id="run">Run</button>
-      <p class="hint" style="margin-top:9px">Similarity will not come out identical twice.
-      Hue will. Similarity supports up to 250 images; Hue supports 500.</p>
+      <p class="hint" style="margin-top:9px">Similarity and Content will not come out
+      identical twice. Hue will. Similarity and Content support up to 250 images; Hue
+      supports 500. Content compares what's <i>in</i> each image (a small pretrained
+      model downloaded once, on first use) rather than its colours — the first run
+      needs a network connection and a few extra seconds.</p>
     </div>
 
 
@@ -658,11 +662,13 @@ function afterItemsChanged(){
   document.getElementById("clearCollections").disabled = items.length === 0;
   document.getElementById("stepRun").classList.toggle("off", items.length === 0);
   const sim = document.querySelector('button[data-mode="similarity"]');
+  const content = document.querySelector('button[data-mode="content"]');
   const overSimilarity = items.length > MAX_SIMILARITY;
-  sim.disabled = overSimilarity;
-  sim.title = overSimilarity ? "Similarity supports up to " + MAX_SIMILARITY + " images." : "";
+  const limitTitle = overSimilarity ? "Supports up to " + MAX_SIMILARITY + " images." : "";
+  sim.disabled = overSimilarity; sim.title = limitTitle;
+  content.disabled = overSimilarity; content.title = limitTitle;
   document.getElementById("simLimit").hidden = !overSimilarity;
-  if (overSimilarity && mode === "similarity") setMode("hue");
+  if (overSimilarity && (mode === "similarity" || mode === "content")) setMode("hue");
   if (items.length) emptyEl.textContent = "Press Run to arrange them.";
 }
 
@@ -1055,6 +1061,90 @@ function spaceSimilarityLayout(rawPoints, tileSize, viewportW, viewportH){
 }
 
 
+/* ── content embeddings ──────────────────────────────────────────────
+ * "Similarity" (above) compares colour only: a 12x12 pixel grid plus a
+ * hue histogram. It has no idea what is actually pictured, so a portrait
+ * and a foliage photo with the same muted palette can end up neighbours.
+ * "Content" instead runs each thumbnail through MobileNet, a small image
+ * classifier pretrained on a broad object/scene vocabulary, and reads off
+ * its second-to-last layer as a ~1024-dimension description of what the
+ * network "sees" rather than what colour it is. That vector is fed into
+ * the exact same tsnePrepare/tsneStep/spaceSimilarityLayout pipeline used
+ * for colour similarity — only the feature vector differs.
+ *
+ * The model (a few MB) is fetched from a CDN and loaded once, on first
+ * use, rather than on every page load, since most visits may never touch
+ * this mode. Everything still runs locally in the browser afterwards —
+ * images are never uploaded anywhere to compute this.
+ */
+let contentModel = null, contentModelLoading = null;
+
+function loadScriptOnce(src){
+  return new Promise(function(resolve, reject){
+    if (document.querySelector('script[src="' + src + '"]')) { resolve(); return; }
+    const s = document.createElement("script");
+    s.src = src;
+    s.onload = function(){ resolve(); };
+    s.onerror = function(){ reject(new Error("Could not load " + src)); };
+    document.head.appendChild(s);
+  });
+}
+
+async function ensureContentModel(){
+  if (contentModel) return contentModel;
+  if (!contentModelLoading){
+    contentModelLoading = (async function(){
+      if (!window.tf){
+        await loadScriptOnce("https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4/dist/tf.min.js");
+      }
+      if (!window.mobilenet){
+        await loadScriptOnce("https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2/dist/mobilenet.min.js");
+      }
+      // alpha 1.0 favours embedding quality over download size; drop to
+      // 0.5 or 0.25 here if a lighter one-time download matters more.
+      return await window.mobilenet.load({ version:2, alpha:1.0 });
+    })();
+  }
+  contentModel = await contentModelLoading;
+  return contentModel;
+}
+
+async function computeContentEmbedding(model, imageLike){
+  const embedding = tf.tidy(function(){ return model.infer(imageLike, true); });
+  const values = await embedding.data();
+  embedding.dispose();
+  return Float32Array.from(values);
+}
+
+async function ensureContentEmbeddings(list, onProgress){
+  const model = await ensureContentModel();
+  let dim = 0;
+  for (let i = 0; i < list.length; i++){
+    const it = list[i];
+    if (!it.contentFeat){
+      try {
+        it.contentFeat = await computeContentEmbedding(model, it.thumb);
+        dim = dim || it.contentFeat.length;
+      } catch (err){
+        it.contentFeat = new Float32Array(dim);
+      }
+    }
+    if (i % 4 === 0){
+      onProgress(i, list.length);
+      await new Promise(function(r){ requestAnimationFrame(r); });
+    }
+  }
+  // Backfill any failure that happened before `dim` was known (e.g. the
+  // very first image failing to decode) so every vector tsnePrepare sees
+  // ends up the same length.
+  if (dim){
+    for (const it of list){
+      if (it.contentFeat.length !== dim) it.contentFeat = new Float32Array(dim);
+    }
+  }
+}
+
+
 function gridFromOrder(order){
   const n = order.length, cols = Math.ceil(Math.sqrt(n)), rows = Math.ceil(n/cols);
   const out = new Array(n);
@@ -1075,16 +1165,42 @@ function scatterTile(n){
 
 const LEGEND = {
   similarity:"arranged by visual similarity · recomputed each run",
+  content:"arranged by image content · recomputed each run",
   hue:"arranged by average hue",
   light:"arranged by average lightness",
   name:"arranged by filename"
 };
 
 
+// Shared by "similarity" (colour) and "content" (MobileNet) modes: both
+// just hand this a feature vector per image and a label for the progress
+// text. Returns null (without setting layoutCache) if the job was
+// cancelled partway — e.g. by starting another run before this one finished.
+async function runFeatureLayout(job, featureVectors, label){
+  tileSize = scatterTile(items.length);
+  const S = tsnePrepare(featureVectors);
+  const TOTAL = 500;
+  for (let i = 0; i < TOTAL; i++){
+    tsneStep(S, i);
+    if (i % 6 === 0){
+      applyLayout(normalise(S.Y));
+      say("Computing " + label + "… " + Math.round(i/TOTAL*100) + "%");
+      await new Promise(r => requestAnimationFrame(r));
+      if (job.cancelled) return null;
+    }
+  }
+  say("Spacing thumbnails…");
+  await new Promise(r => requestAnimationFrame(r));
+  return spaceSimilarityLayout(S.Y.map(function(p, i){
+    return { x:p[0], y:p[1], index:i };
+  }), tileSize, W, H);
+}
+
+
 async function buildLayout(which){
   if (!items.length) return;
-  if (which === "similarity" && items.length > MAX_SIMILARITY){
-    say("Similarity supports up to " + MAX_SIMILARITY +
+  if ((which === "similarity" || which === "content") && items.length > MAX_SIMILARITY){
+    say((which === "content" ? "Content" : "Similarity") + " supports up to " + MAX_SIMILARITY +
       " images. Choose Hue, Light, or Name for larger canvases.");
     return;
   }
@@ -1097,26 +1213,29 @@ async function buildLayout(which){
   } else if (which === "name"){
     layoutCache.name = gridFromOrder(items.map((_,i)=>i)
       .sort((a,b) => items[a].name.localeCompare(items[b].name, undefined, {numeric:true})));
+  } else if (which === "content"){
+    if (tsneJob) tsneJob.cancelled = true;
+    const job = tsneJob = { cancelled:false };
+    say("Loading content model…");
+    await new Promise(r => requestAnimationFrame(r));
+    try {
+      await ensureContentEmbeddings(items, function(i, total){
+        say("Reading image content… " + Math.round(i/total*100) + "%");
+      });
+    } catch (err){
+      say("Could not load the content model — check your connection and try again.");
+      return;
+    }
+    if (job.cancelled) return;
+    const layout = await runFeatureLayout(job, items.map(it => it.contentFeat), "content similarity");
+    if (!layout) return;
+    layoutCache.content = layout;
   } else {
     if (tsneJob) tsneJob.cancelled = true;
-    tileSize = scatterTile(items.length);
-    const S = tsnePrepare(items.map(it => it.feat));
     const job = tsneJob = { cancelled:false };
-    const TOTAL = 500;
-    for (let i = 0; i < TOTAL; i++){
-      tsneStep(S, i);
-      if (i % 6 === 0){
-        applyLayout(normalise(S.Y));
-        say("Computing similarity… " + Math.round(i/TOTAL*100) + "%");
-        await new Promise(r => requestAnimationFrame(r));
-        if (job.cancelled) return;
-      }
-    }
-    say("Spacing thumbnails…");
-    await new Promise(r => requestAnimationFrame(r));
-    layoutCache.similarity = spaceSimilarityLayout(S.Y.map(function(p, i){
-      return { x:p[0], y:p[1], index:i };
-    }), tileSize, W, H);
+    const layout = await runFeatureLayout(job, items.map(it => it.feat), "similarity");
+    if (!layout) return;
+    layoutCache.similarity = layout;
   }
   say("");
   applyLayout(layoutCache[which]);

@@ -84,6 +84,7 @@ progress{width:100%;height:7px;margin:10px 0 2px;accent-color:var(--violet)}
 #collections{display:flex;flex-direction:column;gap:7px}
 #collSearch{margin:0 0 8px}
 #collMore{width:100%;margin-top:8px}
+#clearCollections{width:100%;margin-top:10px}
 .coll{border:1px solid var(--line);background:#fff;border-radius:9px;padding:9px 11px;
   cursor:pointer;transition:.15s;display:flex;align-items:center;gap:9px}
 .coll:hover{border-color:var(--azure)}
@@ -133,6 +134,7 @@ canvas.drag{cursor:grabbing}
 #detail .meta{color:#CFCCE4;font-size:12px;font-family:var(--mono);letter-spacing:.06em}
 .credit{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--dim);
   line-height:1.7;border-top:1px solid var(--line);padding-top:14px;margin-top:6px}
+.credit .institution{white-space:nowrap}
 
 
 #landing{position:fixed;inset:0;z-index:60;overflow:hidden;background:#FAFAF8;
@@ -223,7 +225,7 @@ canvas.drag{cursor:grabbing}
 
 
 <header>
-  <span class="brand"><b>Collective Image Lab</b> &middot; working with data</span>
+  <span class="brand"><b>Collective Image Lab</b> &middot; digital methods: working with data</span>
   <div class="views" role="tablist" aria-label="Tool view">
     <button id="vLab" class="on" role="tab" aria-selected="true">Lab</button>
     <button id="vCollections" role="tab" aria-selected="false">Collections</button>
@@ -239,6 +241,7 @@ canvas.drag{cursor:grabbing}
       <div id="collections"></div>
       <button id="collMore" hidden>Show all collections</button>
       <p class="hint" id="collNote" style="margin-top:10px"></p>
+      <button id="clearCollections" disabled>Clear canvas</button>
     </div>
 
 
@@ -290,7 +293,7 @@ canvas.drag{cursor:grabbing}
     </div>
 
 
-    <div class="credit">Collective Image Lab<br>Made with &hearts; &amp; &#10024; by Janna Joceli Omena<br>Department of Digital Humanities, King&rsquo;s College London</div>
+    <div class="credit">Collective Image Lab<br>Made with &hearts; &amp; &#10024; by Janna Joceli Omena<br>Department of Digital Humanities,<br><span class="institution">King&rsquo;s College London</span></div>
 </aside>
 
 
@@ -544,6 +547,7 @@ function afterItemsChanged(){
   document.getElementById("cntColl").textContent = items.length - own;
   document.getElementById("tally").hidden = items.length === 0;
   document.getElementById("clear").disabled = items.length === 0;
+  document.getElementById("clearCollections").disabled = items.length === 0;
   document.getElementById("stepRun").classList.toggle("off", items.length === 0);
   const sim = document.querySelector('button[data-mode="similarity"]');
   const overSimilarity = items.length > MAX_SIMILARITY;
@@ -877,18 +881,25 @@ document.getElementById("run").addEventListener("click", function(){
 });
 
 
-document.getElementById("clear").addEventListener("click", function(){
+function clearCanvas(){
+  if (tsneJob) tsneJob.cancelled = true;
   items.forEach(function(it){ URL.revokeObjectURL(it.url); });
   items.length = 0; layoutCache = {}; legendEl.textContent = "";
   loadedIds.clear();
+  selectedId = null;
   renderCollections();
+  renderDonate();
   afterItemsChanged();
   document.getElementById("stepShare").classList.add("off");
   emptyEl.textContent = "Load a collection, or drop your own images, then press Run.";
   emptyEl.classList.remove("hide");
+  say("");
   loadState.textContent = "Up to " + MAX_IMAGES + " images on one canvas.";
   showLoadReport([]);
-});
+}
+
+document.getElementById("clear").addEventListener("click", clearCanvas);
+document.getElementById("clearCollections").addEventListener("click", clearCanvas);
 
 
 const zone = document.getElementById("zone"), pick = document.getElementById("pick");

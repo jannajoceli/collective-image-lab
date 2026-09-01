@@ -83,12 +83,25 @@ progress{width:100%;height:7px;margin:10px 0 2px;accent-color:var(--violet)}
 .dot.own{background:var(--violet)} .dot.shared{background:var(--azure)}
 
 
-#collections{display:flex;flex-direction:column;gap:7px}
-#collSearch{margin:0 0 8px}
-#collMore{width:100%;margin-top:8px}
+#collPicker{position:relative;margin-bottom:8px}
+#collTrigger{width:100%;text-align:left;display:flex;align-items:center;gap:9px;
+  border:1px solid var(--line);background:#fff;border-radius:9px;padding:9px 11px;
+  cursor:pointer;font:inherit;transition:.15s}
+#collTrigger:hover,#collTrigger[aria-expanded="true"]{border-color:var(--azure)}
+#collTrigger .t{flex:1;min-width:0}
+#collTrigger .t b{display:block;font-size:12.5px;font-weight:600;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+#collTrigger .t span{color:var(--dim);font-size:11px}
+#collTrigger .chev{flex:none;color:var(--dim);font-size:11px;transition:transform .15s}
+#collTrigger[aria-expanded="true"] .chev{transform:rotate(180deg)}
+#collListbox{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:20;background:#fff;
+  border:1px solid var(--line);border-radius:10px;
+  box-shadow:0 8px 24px rgba(23,20,66,.14),0 2px 6px rgba(23,20,66,.08);
+  max-height:320px;overflow-y:auto;padding:6px}
+#collSearch{position:sticky;top:0;margin:0 0 6px;background:#fff;z-index:1}
 #clearCollections{width:100%;margin-top:10px}
 .coll{border:1px solid var(--line);background:#fff;border-radius:9px;padding:9px 11px;
-  cursor:pointer;transition:.15s;display:flex;align-items:center;gap:9px}
+  cursor:pointer;transition:.15s;display:flex;align-items:center;gap:9px;margin:2px 0}
 .coll:hover{border-color:var(--azure)}
 .coll.on{border-color:var(--azure);background:var(--azure-bg)}
 .coll.loaded{cursor:default}
@@ -324,10 +337,18 @@ canvas.drag{cursor:grabbing}
     <div class="step" id="collectionSource" hidden>
       <h2><span class="num az">1</span> Collections</h2>
       <p class="hint" id="collMeta">&nbsp;</p>
-      <input type="text" id="collSearch" placeholder="Search collections" aria-label="Search collections" hidden>
-      <div id="collections"></div>
-      <button id="collMore" hidden>Show all collections</button>
-      <p class="hint" id="collNote" style="margin-top:10px"></p>
+      <div id="collPicker">
+        <button id="collTrigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+          <span class="t"><b id="collTriggerName"></b><span id="collTriggerMeta"></span></span>
+          <span id="collTriggerTag"></span>
+          <span class="chev" aria-hidden="true">&#9662;</span>
+        </button>
+        <div id="collListbox" role="listbox" aria-label="Collections" hidden>
+          <input type="text" id="collSearch" placeholder="Search collections" aria-label="Search collections" hidden>
+          <div id="collOptions"></div>
+        </div>
+      </div>
+      <p class="hint" id="collNote" style="margin-top:8px"></p>
       <button id="clearCollections" disabled>Clear canvas</button>
     </div>
 
@@ -419,7 +440,6 @@ let worldWidth = WORLD, worldHeight = WORLD;
 let indexData = null, selectedId = null;
 const loadedIds = new Set();
 let publicView = "lab";
-let showAllCollections = false;
 const view = { k:1, x:0, y:0 };
 
 
@@ -1235,7 +1255,7 @@ function clearCanvas(){
   items.length = 0; layoutCache = {}; legendEl.textContent = "";
   loadedIds.clear();
   selectedId = null;
-  renderCollections();
+  renderPicker();
   renderDonate();
   afterItemsChanged();
   document.getElementById("stepShare").classList.add("off");
@@ -1361,7 +1381,7 @@ async function loadIndex(){
     if (!indexData.collections && indexData.sessions) indexData.collections = indexData.sessions;
     meta.textContent = (indexData.title || indexData.project) + " · " +
       indexData.total + " images across " + collList().length + " collections";
-    renderCollections();
+    renderPicker();
     note.textContent = "Locked collections can still be loaded and arranged. " +
       "Locking only closes them to new images.";
   } catch (err) {
@@ -1371,25 +1391,54 @@ async function loadIndex(){
 }
 
 
-function renderCollections(){
-  const list = document.getElementById("collections");
-  list.innerHTML = "";
+function collPickerIsOpen(){
+  return !document.getElementById("collListbox").hidden;
+}
+
+function openCollPicker(){
+  document.getElementById("collListbox").hidden = false;
+  document.getElementById("collTrigger").setAttribute("aria-expanded", "true");
+  renderPicker();
+}
+
+function closeCollPicker(){
+  document.getElementById("collListbox").hidden = true;
+  document.getElementById("collTrigger").setAttribute("aria-expanded", "false");
+}
+
+function renderPicker(){
   const all = collectionsByCreation();
+  const current = selectedId ? all.find(function(c){ return c.id === selectedId; }) : null;
+  const triggerName = document.getElementById("collTriggerName");
+  const triggerMeta = document.getElementById("collTriggerMeta");
+  const triggerTag = document.getElementById("collTriggerTag");
+  if (current){
+    triggerName.textContent = collectionTitle(current);
+    triggerMeta.textContent = current.count + " images · " + fmtSize(current.size_mb) +
+      (loadedIds.has(current.id) ? " · on canvas" : "");
+    triggerTag.className = current.locked ? "tag lock" : "";
+    triggerTag.textContent = current.locked ? "locked" : "";
+  } else {
+    triggerName.textContent = "Choose a collection";
+    triggerMeta.textContent = all.length + " available";
+    triggerTag.className = "";
+    triggerTag.textContent = "";
+  }
+  if (!collPickerIsOpen()) return;
+  const options = document.getElementById("collOptions");
   const search = document.getElementById("collSearch");
-  const more = document.getElementById("collMore");
+  search.hidden = all.length <= 6;
   const query = search.value.trim().toLocaleLowerCase();
   const matching = query ? all.filter(function(c){
     return (collectionTitle(c) + " " + collectionTimeText(c)).toLocaleLowerCase().includes(query);
   }) : all;
-  const visible = query || showAllCollections ? matching : matching.slice(0, 6);
-  search.hidden = all.length <= 6;
-  more.hidden = all.length <= 6 || !!query;
-  more.textContent = showAllCollections ? "Show recent collections" :
-    "Show all " + all.length + " collections";
-  visible.forEach(function(c){
+  options.innerHTML = "";
+  matching.forEach(function(c){
     const el = document.createElement("div");
     el.className = "coll" + (c.id === selectedId ? " on" : "") +
       (loadedIds.has(c.id) ? " loaded" : "");
+    el.setAttribute("role", "option");
+    el.setAttribute("aria-selected", c.id === selectedId ? "true" : "false");
     el.innerHTML = '<div class="t"><b></b><span></span></div>';
     el.querySelector("b").textContent = collectionTitle(c);
     el.querySelector("span").textContent =
@@ -1405,29 +1454,37 @@ function renderCollections(){
       t.className = "tag in"; t.textContent = "loaded";
       el.appendChild(t);
     } else {
-      el.addEventListener("click", function(){ selectAndLoad(c); });
+      el.addEventListener("click", function(){ closeCollPicker(); selectAndLoad(c); });
     }
-    list.appendChild(el);
+    options.appendChild(el);
   });
-  if (!visible.length){
+  if (!matching.length){
     const empty = document.createElement("p");
     empty.className = "hint";
     empty.textContent = "No collections match that search.";
-    list.appendChild(empty);
+    options.appendChild(empty);
   }
 }
 
 
-document.getElementById("collSearch").addEventListener("input", renderCollections);
-document.getElementById("collMore").addEventListener("click", function(){
-  showAllCollections = !showAllCollections;
-  renderCollections();
+document.getElementById("collTrigger").addEventListener("click", function(){
+  if (collPickerIsOpen()) closeCollPicker(); else openCollPicker();
+});
+document.getElementById("collSearch").addEventListener("input", renderPicker);
+document.addEventListener("click", function(e){
+  if (collPickerIsOpen() && !document.getElementById("collPicker").contains(e.target)) closeCollPicker();
+});
+document.addEventListener("keydown", function(e){
+  if (collPickerIsOpen() && e.key === "Escape"){
+    closeCollPicker();
+    document.getElementById("collTrigger").focus();
+  }
 });
 
 
 async function selectAndLoad(c){
   selectedId = c.id;
-  renderCollections();
+  renderPicker();
   renderDonate();
   say('Loading "' + collectionTitle(c) + '"…');
   const report = [];
@@ -1462,7 +1519,7 @@ async function selectAndLoad(c){
       " of " + MAX_IMAGES + " images on canvas" +
       (report.length ? " · " + report.length + " warning" + (report.length === 1 ? "" : "s") : "");
     showLoadReport(report);
-    renderCollections();
+    renderPicker();
     afterItemsChanged();
   } catch (err) {
     say('Could not load "' + collectionTitle(c) + '".');

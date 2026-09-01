@@ -19,6 +19,8 @@
   --amber-bg:#FFF9EF; --amber-line:#F6E0BE; --amber-ink:#7A5313;
   --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
   --rail:312px;
+  /* Cursor-centred mask for the welcome screen's local response. */
+  --mx:50%; --my:50%; --mr:0px;
 }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
@@ -148,27 +150,23 @@ canvas.drag{cursor:grabbing}
   2. The crop-mark lockup is the ONLY branding. No second wordmark.
   3. No description, tagline, hint text or credit block here.
 
-  THE MOTION — four layers, deliberately separate:
+  THE MOTION — three layers, deliberately separate:
   A. Ambient flow: feTurbulence displaces the whole image.
   B. Slow drift: both image copies pan together on a 46s cycle.
   C. Local response: a harder-warped second copy is revealed only
      through a soft radial mask at the cursor.
-  D. Lean: the wrapper eases away from the cursor independently of
-     the image drift transforms.
-
   NOTES FOR ANY LATER EDIT:
   - Displacement scales are driven from JavaScript. Do NOT add a
     SMIL <animate> to flowDisp or rippleDisp; it would overwrite the
     values set each frame.
   - Both image layers carry the same slowdrift animation so they stay
     registered. If one changes, change both.
+  - Cursor interaction never transforms marbleWrap; it updates only
+    the local radial mask and its harder displacement layer.
   ============================================================
 */
 
 #landing {
-  --mx: 50%;
-  --my: 50%;
-  --mr: 0px;
   position: fixed;
   inset: 0;
   z-index: 60;
@@ -183,7 +181,6 @@ canvas.drag{cursor:grabbing}
     inset: -6%;
     width: 112%;
     height: 112%;
-    will-change: transform;
   }
 
   #marbleWrap img {
@@ -1243,7 +1240,6 @@ function escapeHtml(s){
   var landing = document.getElementById('landing');
   var screenEl = document.getElementById('screen');
   var enter = document.getElementById('enter');
-  var wrap = document.getElementById('marbleWrap');
   var ripple = document.getElementById('marbleRipple');
   var disp = document.getElementById('flowDisp');
   var rdisp = document.getElementById('rippleDisp');
@@ -1323,12 +1319,11 @@ function escapeHtml(s){
   var energy = 0;                    // churn from speed
   var presence = 0, presenceTarget = 0;
 
-  var REST_RADIUS = 0.22;            // fraction of the viewport diagonal
+  var REST_RADIUS = 0.10;            // compact area immediately around the cursor
   var SPREAD_RADIUS = 0.85;          // how far it spreads once you leave
   var diag = function () { return Math.sqrt(W * W + H * H); };
 
   var lastX = null, lastY = null, lastT = 0;
-  var leanX = 0, leanY = 0, leanTX = 0, leanTY = 0;
   var pointerHere = false;
 
   document.addEventListener('pointermove', function (e) {
@@ -1347,15 +1342,13 @@ function escapeHtml(s){
     }
     lastX = e.clientX; lastY = e.clientY; lastT = now;
 
-    leanTX = -((e.clientX / W) * 2 - 1) * 1.4;
-    leanTY = -((e.clientY / H) * 2 - 1) * 1.4;
+
   });
 
   document.addEventListener('pointerleave', function () {
     document.body.classList.remove('live');
     pointerHere = false;
     presenceTarget = 0;
-    leanTX = 0; leanTY = 0;
     lastX = null;
   });
 
@@ -1393,7 +1386,7 @@ function escapeHtml(s){
     // radius: held near rest size while the pointer is here, then
     // grows outward across the rest of the surface once it leaves
     var target = pointerHere
-      ? diag() * (REST_RADIUS + energy * 0.10)
+      ? diag() * (REST_RADIUS + energy * 0.035)
       : diag() * SPREAD_RADIUS;
     radius += (target - radius) * (pointerHere ? 0.08 : 0.022);
 
@@ -1408,9 +1401,6 @@ function escapeHtml(s){
     if (ripple) ripple.style.opacity = String(Math.min(0.9, vis));
     if (rdisp) rdisp.setAttribute('scale', String(48 + energy * 90));
 
-    leanX += (leanTX - leanX) * 0.06;
-    leanY += (leanTY - leanY) * 0.06;
-    if (wrap) wrap.style.transform = 'translate3d(' + leanX + '%, ' + leanY + '%, 0)';
 
     requestAnimationFrame(tick);
   }

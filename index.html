@@ -1134,7 +1134,7 @@ function frame(){
   ctx.setTransform(dpr*view.k, 0, 0, dpr*view.k, dpr*view.x, dpr*view.y);
   const x0 = -view.x/view.k - tileSize, x1 = (W-view.x)/view.k + tileSize;
   const y0 = -view.y/view.k - tileSize, y1 = (H-view.y)/view.k + tileSize;
-  const lw = 2.4/view.k;   // constant 2.4px on screen at any zoom
+  const lwBase = 2.4/view.k;   // constant 2.4px on screen at any zoom
   for (const it of items){
     it.cur.x += (it.tgt.x - it.cur.x)*0.14;
     it.cur.y += (it.tgt.y - it.cur.y)*0.14;
@@ -1142,9 +1142,17 @@ function frame(){
     const s = Math.min(tileSize/it.w, tileSize/it.h), w = it.w*s, h = it.h*s;
     const px = it.cur.x - w/2, py = it.cur.y - h/2;
     ctx.drawImage(it.thumb, px, py, w, h);
+    // The border is drawn INSET, fully inside the tile's own reserved box.
+    // At low zoom (many thumbnails on screen) a constant on-screen stroke
+    // width can exceed the gap reserved between neighbours; drawing it
+    // outward, as before, made touching tiles' borders visually fuse into
+    // what reads as overlap even though the images themselves never
+    // overlap. Keeping the stroke inside the box removes that illusion
+    // without moving a single thumbnail.
+    const lw = Math.min(lwBase, Math.min(w, h)*0.4);
     ctx.strokeStyle = EDGE[it.origin] || EDGE.own;
     ctx.lineWidth = lw;
-    ctx.strokeRect(px - lw/2, py - lw/2, w + lw, h + lw);
+    ctx.strokeRect(px + lw/2, py + lw/2, Math.max(0, w-lw), Math.max(0, h-lw));
   }
   requestAnimationFrame(frame);
 }

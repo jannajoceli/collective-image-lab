@@ -13,7 +13,7 @@ Background image: Paweł Czerwiński, Unsplash.
 
 - Tutorial: https://jannajoceli.github.io/collective-image-lab/tutorial.html
 
-- Video: https://youtu.be/tGWY-c6LPzA
+- Video:[ https://youtu.be/tGWY-c6LPzA](https://youtu.be/GIaSSKGoiKo)
 
 ## Capacity
 

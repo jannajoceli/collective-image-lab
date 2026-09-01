@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Collective Image Lab &middot; Tutorial</title>
-<meta name="description" content="How to run a session with the Collective Image Lab: the Lab and Collections panels, arranging by Similarity and Hue, supported images and capacity.">
+<meta name="description" content="How to run a session with the Collective Image Lab: the Lab and Collections panels, arranging by Similarity, Content and Hue, moving around the canvas, supported images and capacity, saving and contributing.">
 <style>
 :root{
   /* Tokens taken directly from collective-image-lab/index.html */
@@ -100,17 +100,28 @@ strong{color:var(--ink);font-weight:600}
 code{font-family:var(--mono);font-size:.88em;background:var(--panel);border:1px solid var(--line);
   border-radius:4px;padding:1px 5px;color:var(--ink)}
 
-/* ── the two panels ─────────────────────────────────────── */
-.panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;
+/* ── panels: the two views, and the three arrangements ──── */
+.panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(228px,1fr));gap:14px;
   margin:18px 0 6px}
 .panel{border:1px solid var(--line);border-radius:12px;padding:16px 18px;background:#fff}
 .panel.own{border-top:3px solid var(--violet)}
 .panel.shared{border-top:3px solid var(--azure);background:var(--azure-bg);
   border-color:var(--azure-line)}
+.panel.mode{border-top:3px solid var(--line2)}
 .panel h3{margin:0 0 6px;font-size:15.5px}
 .panel p{margin:0;font-size:13.5px;line-height:1.6;color:var(--ink2)}
+.panel p + p{margin-top:8px}
 .panel .steps{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;
   color:var(--dim);margin:10px 0 0}
+.panel .cap{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--dim);margin:10px 0 0;display:block}
+
+/* pipeline lines — the chain each arrangement runs through */
+.chain{font-family:var(--mono);font-size:11px;line-height:1.8;color:var(--ink2);
+  background:var(--panel);border:1px solid var(--line);border-radius:8px;
+  padding:11px 13px;margin:14px 0 16px;overflow-x:auto;white-space:nowrap;
+  max-width:none}
+.chain b{color:var(--ink);font-weight:600;display:inline-block;min-width:8.5em}
 
 /* ── the session spine ──────────────────────────────────── */
 .tracks{display:flex;flex-wrap:wrap;gap:8px 20px;margin:0 0 26px;padding:12px 14px;
@@ -140,12 +151,13 @@ ol.flow li span{display:block;font-size:13.5px;color:var(--ink2);max-width:58ch}
 .notice.az strong{color:#0E4762}
 
 /* ── data ───────────────────────────────────────────────── */
-table{border-collapse:collapse;width:100%;max-width:560px;margin:16px 0;font-size:13.5px}
+table{border-collapse:collapse;width:100%;max-width:620px;margin:16px 0;font-size:13.5px}
 th,td{text-align:left;padding:9px 12px 9px 0;border-bottom:1px solid var(--line);
   vertical-align:top}
 th{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
   color:var(--dim);font-weight:500}
 td.n{font-family:var(--mono);color:var(--ink);white-space:nowrap}
+td.k{font-family:var(--mono);color:var(--ink);white-space:nowrap;font-size:12px}
 ul.plain{margin:0 0 13px;padding-left:19px;color:var(--ink2);max-width:60ch}
 ul.plain li{margin-bottom:6px}
 
@@ -188,9 +200,9 @@ a:focus-visible,.card:focus-visible{outline:2px solid var(--violet);outline-offs
     <div class="rule"></div>
     <p class="sub">The same images, read more than one way.</p>
     <p class="lede">A browser tool for looking at a room&rsquo;s worth of images together.
-      Participants load their own images, arrange them by visual similarity or by hue, and open
-      published collections built by earlier sessions. Everything runs in the browser; the page
-      uploads nothing.</p>
+      Participants load their own images, arrange them by visual similarity, by image content
+      or by hue, and open published collections built by earlier sessions. Everything runs in
+      the browser; the page uploads nothing.</p>
 
     <div class="legend" aria-label="Colour key used throughout this page">
       <div><span class="chip v"></span>Violet &mdash; your images, in your browser</div>
@@ -215,10 +227,11 @@ a:focus-visible,.card:focus-visible{outline:2px solid var(--violet);outline-offs
         <li><a href="#hosting">What is hosted where</a></li>
         <li><a href="#panels">Lab and Collections</a></li>
         <li><a href="#session">Running a session</a></li>
-        <li><a href="#arrange">Similarity and Hue</a></li>
+        <li><a href="#arrange">The three arrangements</a></li>
+        <li><a href="#canvas">Reading the canvas</a></li>
         <li><a href="#capacity">Images and capacity</a></li>
         <li><a href="#explore">Opening a collection</a></li>
-        <li><a href="#contribute">Contributing images</a></li>
+        <li><a href="#share">Saving and contributing</a></li>
         <li><a href="#publishing">Getting a collection published</a></li>
       </ol>
     </nav>
@@ -229,7 +242,7 @@ a:focus-visible,.card:focus-visible{outline:2px solid var(--violet);outline-offs
         <p class="eyebrow">01 &middot; Architecture</p>
         <h2>What is hosted where</h2>
         <p>The Lab and Collections interface is hosted by GitHub Pages. Participants use Lab to
-          upload and arrange images in their own browser. Published collections are stored as JSON
+          load and arrange images in their own browser. Published collections are stored as JSON
           files in the same repository and explored through Collections.</p>
         <p>Nothing about this is server-side. Layouts are computed on the participant&rsquo;s own
           machine each time they arrange, which is why the arrangement is something they perform
@@ -237,34 +250,52 @@ a:focus-visible,.card:focus-visible{outline:2px solid var(--violet);outline-offs
         <div class="notice az">
           <p><strong>Images a participant loads into Lab never leave their browser.</strong> The
             page makes no upload of its own. Contributing to a shared collection is a separate,
-            deliberate act &mdash; see <a href="#contribute">Contributing images</a>.</p>
+            deliberate act &mdash; see <a href="#share">Saving and contributing</a>.</p>
+          <p>The one thing fetched from outside the site is the small pretrained model used by the
+            <strong>Content</strong> arrangement, downloaded once per session from a public CDN.
+            It is the model that travels to the images, not the images to the model.</p>
         </div>
+        <p>Opening the tool lands on a full-screen welcome image. Click the crop-mark lockup
+          &mdash; or tab to it and press Enter &mdash; to go through to the workspace. The
+          animation there is decorative and stands down for anyone whose system asks for reduced
+          motion.</p>
       </section>
 
       <section id="panels">
         <p class="eyebrow">02 &middot; The interface</p>
         <h2>Lab and Collections</h2>
-        <p>Two panels, switched from the header. They answer different questions, and the
-          interface colours them differently so it stays clear which set of images is on
-          screen.</p>
+        <p>Two views, switched from the buttons at the right of the header. They answer different
+          questions, and the interface colours them differently so it stays clear which set of
+          images is on screen.</p>
 
         <div class="panels">
           <div class="panel own">
             <h3>Lab</h3>
             <p>A participant&rsquo;s own images, held in their browser for the session and gone
               when the tab closes.</p>
-            <p class="steps">1 Your images &rarr; 2 Arrange</p>
+            <p class="steps">1 Your images &rarr; 2 Arrange &rarr; 3 Record &amp; contribute</p>
           </div>
           <div class="panel shared">
             <h3>Collections</h3>
             <p>Published sets built from images earlier groups chose to contribute. Open to
               anyone with the link.</p>
-            <p class="steps">1 Collections &rarr; 2 Arrange</p>
+            <p class="steps">1 Collections &rarr; 2 Arrange &rarr; 3 Record</p>
           </div>
         </div>
 
-        <p>Both end in the same place. Once images are loaded, from either source, the arranging
-          works identically.</p>
+        <p>The left rail always shows the same three numbered steps, and step 2 stays greyed out
+          until there are images to work with. Both views feed the same canvas: whatever is loaded,
+          from either source, is arranged by the same methods.</p>
+
+        <h3>Loading your own images</h3>
+        <p>Drop files or a whole folder anywhere on the page, or use <strong>Choose images</strong>
+          and <strong>Choose folder</strong>. Dropped folders are read through their subfolders,
+          and files are ordered by name before loading, so a numbered set stays in its own order.
+          A progress bar runs while images are read, and the line beneath it reports how many were
+          added and how many are now on the canvas.</p>
+        <p>Anything the browser cannot use is skipped rather than stopping the load. A
+          <strong>skipped files</strong> panel opens with one line per file and the reason:
+          unsupported type, undecodable, or past the 500-image canvas limit.</p>
       </section>
 
       <section id="session">
@@ -293,8 +324,9 @@ a:focus-visible,.card:focus-visible{outline:2px solid var(--violet);outline-offs
           </li>
           <li>
             <b>Arrange, and arrange again</b>
-            <span>Run <strong>Similarity</strong>, then <strong>Hue</strong>, on the same set.
-              The gap between the two arrangements is usually where the discussion starts.</span>
+            <span>Run <strong>Similarity</strong>, then <strong>Content</strong>, then
+              <strong>Hue</strong>, on the same set. The gaps between the three arrangements are
+              usually where the discussion starts.</span>
           </li>
           <li>
             <b>Compare across the room</b>
@@ -304,49 +336,138 @@ a:focus-visible,.card:focus-visible{outline:2px solid var(--violet);outline-offs
           <li class="a">
             <b>Open a published collection</b>
             <span>Switch to <strong>Collections</strong> and choose a set by name. Now the same
-              two arrangements run over hundreds of images from other groups.</span>
+              arrangements run over hundreds of images from other groups &mdash; or over a
+              collection with your own images mixed into it.</span>
+          </li>
+          <li>
+            <b>Keep the evidence</b>
+            <span><strong>Save view</strong> for the picture, <strong>Save layout</strong> for the
+              coordinates. Two arrangements of one set, saved side by side, are what a write-up
+              can actually argue from.</span>
           </li>
           <li class="a">
             <b>Close on what the arrangement can and cannot see</b>
-            <span>Hue reads colour. Similarity reads visual features. Neither reads subject,
-              intent or provenance &mdash; which is the point worth landing.</span>
+            <span>Hue reads colour. Similarity reads colour and composition. Content reads a
+              pretrained model&rsquo;s sense of subject matter. None of them reads intent or
+              provenance &mdash; which is the point worth landing.</span>
           </li>
         </ol>
       </section>
 
       <section id="arrange">
         <p class="eyebrow">04 &middot; Arranging</p>
-        <h2>Similarity and Hue</h2>
-        <p><strong>Hue</strong> arranges images by average hue. It is fast, deterministic, and
-          handles the full 500-image canvas.</p>
-        <p><strong>Similarity</strong> arranges by computed visual similarity using exact t-SNE.
-          It is the more interesting view and the more expensive one, which is why it is capped
-          lower.</p>
-        <div class="notice am">
-          <p><strong>Above 250 images, Similarity is disabled</strong> and the interface directs
-            participants to Hue. If a session needs Similarity on a large set, split the images
-            into smaller batches rather than trying to force it.</p>
+        <h2>The three arrangements</h2>
+        <p>Choose a method in step 2, then press <strong>Run</strong>. Each run is computed from
+          scratch on the machine in front of you; the status box at the bottom left counts it
+          through, and a line at the bottom right names the arrangement currently on screen.</p>
+
+        <div class="panels">
+          <div class="panel mode">
+            <h3>Similarity</h3>
+            <p>Describes each image by colour and layout &mdash; a 12&times;12 grid of pixel
+              values plus a 24-bin hue histogram &mdash; and maps those descriptions with t-SNE,
+              which pulls images with similar descriptions into neighbourhoods.</p>
+            <span class="cap">Up to 250 images</span>
+          </div>
+          <div class="panel mode">
+            <h3>Content</h3>
+            <p>Passes each thumbnail through MobileNet, a small pretrained network, and uses the
+              layer just before its final guess &mdash; roughly a thousand numbers describing what
+              the network noticed &mdash; as the input to the same t-SNE.</p>
+            <span class="cap">Up to 250 images &middot; first run needs the network</span>
+          </div>
+          <div class="panel mode">
+            <h3>Hue</h3>
+            <p>Sorts images by average hue, ties broken by lightness, and lays them out as an
+              ordered contact sheet. No clustering, no randomness: the same set gives the same
+              sheet every time.</p>
+            <span class="cap">Up to 500 images</span>
+          </div>
         </div>
-        <p>Hue and Similarity are both calculated from a representative static frame. They analyse
+
+        <p class="chain"><b>Similarity</b>colour &amp; layout features &rarr; t-SNE &rarr; 2D neighbourhoods &rarr; spacing<br>
+        <b>Content</b>MobileNet embedding &rarr; t-SNE &rarr; 2D neighbourhoods &rarr; spacing<br>
+        <b>Hue</b>average hue &rarr; sorted grid</p>
+
+        <h3>Why Similarity and Content disagree</h3>
+        <p>The productive comparison is between these two. A portrait shot against green foliage
+          and a photograph of a forest can land next to each other under <strong>Similarity</strong>,
+          which never looks past colour. Under <strong>Content</strong> they usually separate,
+          because the representation is closer to <em>what is pictured</em> than to <em>what
+          colour it is</em>; two portraits under quite different lighting are more likely to become
+          neighbours instead. Running both on one set, and asking which pairs survive the switch,
+          makes the difference between the two notions of &ldquo;alike&rdquo; concrete.</p>
+
+        <h3>What to expect from each run</h3>
+        <p>Similarity and Content are stochastic: <strong>they will not come out identical
+          twice</strong>, and re-running is a legitimate way to see which groupings are stable and
+          which were an accident of one run. Hue is deterministic. After t-SNE finishes, a
+          collision-spacing step pushes overlapping thumbnails apart so they can be inspected;
+          it moves them on screen without changing the similarity that was computed.</p>
+        <p>The first time <strong>Content</strong> runs in a session it downloads the model
+          (a few megabytes) and reads every image through it, so it takes noticeably longer than
+          later runs. That first run needs a working connection; after it, everything is local
+          again. If the download fails, the status box says so and Similarity and Hue carry on
+          working.</p>
+
+        <div class="notice am">
+          <p><strong>Above 250 images, Similarity and Content are switched off.</strong> The
+            buttons disable themselves, an amber notice explains that exact t-SNE does not stretch
+            that far, and the tool falls back to Hue. If a session needs Similarity or Content on
+            a large set, split the images into smaller batches rather than trying to force it.</p>
+        </div>
+
+        <p>All three arrangements are calculated from a representative static frame. They analyse
           appearance, not motion, so an animated GIF is read on the strength of one frame even
           though it stays animated on screen.</p>
       </section>
 
+      <section id="canvas">
+        <p class="eyebrow">05 &middot; The canvas</p>
+        <h2>Reading the canvas</h2>
+        <p>The arrangement is not a finished picture to be received; it is something to move
+          around in. Thumbnails ease into position, and the view can be pushed well past the
+          point where the whole set is visible at once.</p>
+
+        <table>
+          <thead><tr><th>Gesture</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td class="k">Scroll / pinch</td>
+              <td>Zooms about the pointer, from the whole canvas down to a single thumbnail</td></tr>
+            <tr><td class="k">Drag</td><td>Pans the view</td></tr>
+            <tr><td class="k">Click a thumbnail</td>
+              <td>Opens it large, with its filename, whether it is yours or from a collection, and
+                its position in the set</td></tr>
+            <tr><td class="k">Click again</td><td>Closes the enlarged image</td></tr>
+          </tbody>
+        </table>
+
+        <p>Every thumbnail carries a coloured border: <strong>violet</strong> for an image the
+          participant loaded, <strong>azure</strong> for one belonging to a published collection.
+          On a mixed canvas that border is what lets you see how your own images distribute
+          themselves through someone else&rsquo;s set &mdash; often the most telling thing on
+          screen.</p>
+        <p><strong>Clear canvas</strong>, at the foot of step 1, empties everything and returns
+          the tool to its starting state.</p>
+      </section>
+
       <section id="capacity">
-        <p class="eyebrow">05 &middot; Limits</p>
+        <p class="eyebrow">06 &middot; Limits</p>
         <h2>Supported images and capacity</h2>
         <p>The recommended maximum is 500 images per collection or canvas. JPEG, PNG, WebP and GIF
-          files are accepted. GIF animations are preserved and remain visibly animated in Lab and
-          Collections.</p>
+          files are accepted, along with anything else the browser can decode as an image. GIF
+          animations are preserved and remain visibly animated in Lab and Collections.</p>
 
         <table>
           <thead><tr><th>View</th><th>Ceiling</th><th>Above the ceiling</th></tr></thead>
           <tbody>
-            <tr><td>Hue</td><td class="n">500</td><td>&mdash;</td></tr>
             <tr><td>Similarity</td><td class="n">250</td>
               <td>Disabled; the interface directs users to Hue</td></tr>
+            <tr><td>Content</td><td class="n">250</td>
+              <td>Disabled; the interface directs users to Hue</td></tr>
+            <tr><td>Hue</td><td class="n">500</td><td>&mdash;</td></tr>
             <tr><td>Collection or canvas</td><td class="n">500</td>
-              <td>Split across JSON parts</td></tr>
+              <td>Loading stops at the limit and says so</td></tr>
           </tbody>
         </table>
 
@@ -354,39 +475,81 @@ a:focus-visible,.card:focus-visible{outline:2px solid var(--violet);outline-offs
           <li>Unreadable or unsupported files are skipped rather than stopping the whole load, and
             their filenames are reported.</li>
           <li>Large collections may be divided into multiple JSON parts, kept below
-            GitHub&rsquo;s browser-upload limit.</li>
+            GitHub&rsquo;s browser-upload limit; the tool loads the parts in sequence.</li>
           <li>Very large sets take a moment to arrange. Keep the tab in the foreground while a
             layout is computing.</li>
+          <li>Because a collection and your own images share the 500-image canvas, loading a large
+            collection first leaves little room for your own. Load yours, then add a collection,
+            if the comparison is the point.</li>
         </ul>
       </section>
 
       <section id="explore">
-        <p class="eyebrow">06 &middot; Shared sets</p>
+        <p class="eyebrow">07 &middot; Shared sets</p>
         <h2>Opening a collection</h2>
-        <div class="notice az">
-          <p>Collections are ordered by creation time, newest first. Once the archive grows beyond
-            six collections, the interface shows the six most recent by default and provides
-            search and <strong>Show all collections</strong>.</p>
-          <p>A collection never loads automatically. The participant chooses which set to
-            open.</p>
-        </div>
-        <p>Collections are named after the images or the seminar theme rather than a date or a
+        <p>Switch to <strong>Collections</strong> and open the picker in step 1. Each entry gives
+          the collection&rsquo;s name, how many images it holds and how large it is; the line above
+          the picker reports the archive as a whole. Collections are ordered by creation time,
+          newest first, and named after the images or the seminar theme rather than a date or a
           class time, so a set stays findable long after the session that made it.</p>
+
+        <div class="notice az">
+          <p><strong>A collection never loads automatically.</strong> The participant chooses which
+            set to open, and it loads into whatever is already on the canvas rather than replacing
+            it &mdash; which is how a group&rsquo;s own images end up arranged among a published
+            set.</p>
+          <p>Once the archive passes six collections, a search field appears at the top of the
+            picker. A collection already on the canvas is tagged <strong>loaded</strong> and cannot
+            be added twice.</p>
+        </div>
+
+        <p>Some collections are tagged <strong>locked</strong> in amber. Locking closes a collection
+          to new images; it does not close it to you. A locked collection loads, arranges and
+          exports exactly like any other.</p>
+        <p>The tool reads its archive from an index file, so a different archive can be opened by
+          adding <code>?collection=&hellip;/index.json</code> to the address &mdash; useful for a
+          module that keeps its own set of collections alongside this one.</p>
       </section>
 
-      <section id="contribute">
-        <p class="eyebrow">07 &middot; Contributing</p>
-        <h2>Contributing images</h2>
+      <section id="share">
+        <p class="eyebrow">08 &middot; Keeping and contributing</p>
+        <h2>Saving and contributing</h2>
+        <p>Step 3 appears once an arrangement has run. It holds two exports and, in Lab, the route
+          into the shared archive.</p>
+
+        <div class="panels">
+          <div class="panel own">
+            <h3>Save view</h3>
+            <p>A PNG of the canvas exactly as it is on screen, named after the arrangement. Frame
+              the view first &mdash; zoom and position are captured as they stand.</p>
+          </div>
+          <div class="panel own">
+            <h3>Save layout</h3>
+            <p>A CSV of the arrangement: one row per image with its position as x and y between 0
+              and 1, whether it is yours or from a collection, and its filename. Enough to rebuild
+              or re-plot the arrangement elsewhere.</p>
+          </div>
+        </div>
+
+        <p>Saving the layout alongside the picture is what makes a run citable. Two CSVs from
+          Similarity and Content over the same set can be compared directly, whereas two
+          screenshots can only be described.</p>
+
+        <h3>Contributing images</h3>
         <p>Contributing is separate from the lab exercise. Every participant completes the
           exercise whether or not they contribute images to the shared archive, and it is worth
           saying so out loud before anyone submits anything.</p>
+        <p>The <strong>Donate your images</strong> button opens a submission form in a new tab,
+          where original files are sent deliberately and by hand. Nothing is uploaded by the page
+          itself, at any point. Where a locked collection is selected, the button is replaced by a
+          note explaining that no further images can be added to it.</p>
         <p>Images are contributed under CC BY 4.0, with attribution to the module and department
           that ran the session. To have an image removed, contact the module convenor: it is
           withdrawn at the next rebuild, and its position is not reused.</p>
       </section>
 
       <section id="publishing">
-        <p class="eyebrow">08 &middot; Publishing</p>
+        <p class="eyebrow">09 &middot; Publishing</p>
         <h2>Getting a collection published</h2>
         <p>Turning a folder of contributed images into a published collection is done with a
           separate, access-controlled builder, and the resulting files are committed to the

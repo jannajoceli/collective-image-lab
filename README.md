@@ -1,5 +1,7 @@
 # Collective Image Lab
 
+<img width="400" height="221" alt="image-collective-lab" src="https://github.com/user-attachments/assets/6385dfe5-1ac4-4d2b-94b7-22075c45896c" />
+
 Browser tool for the Digital Methods Labs, King's College London.
 Students load a published collection, add their own images, and arrange them.
 Everything runs client-side; nothing is uploaded by the page itself.

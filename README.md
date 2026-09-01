@@ -24,6 +24,9 @@ The recommended supported capacity is **500 images per collection/canvas**:
 - **Hue:** up to 500.
 - **Similarity:** exact t-SNE up to 250. Above that, the interface explains
   that the quadratic calculation is too heavy and asks users to use Hue.
+- **Content:** same limit as Similarity (250), since it also runs exact t-SNE.
+  The first use in a session also needs a network connection, to download the
+  small pretrained model that reads each image's content.
 - **Lab uploads:** multiple selected files or a selected/dropped folder, up to
   500 images on one canvas.
 
@@ -62,6 +65,25 @@ In the Collective Image Lab, the original t-SNE positions are followed by a smal
 
 **Supported capacity:** exact t-SNE is used for collections of up to **250 images**.
 
+### Content · MobileNet embeddings
+
+**Content** also uses t-SNE, but changes what goes into it. Where **Similarity** describes each image purely by colour — a 12×12 grid of pixel values plus a hue histogram — **Content** instead passes each thumbnail through **MobileNet**, a small convolutional neural network pretrained to recognise a broad vocabulary of everyday objects and scenes. Rather than reading MobileNet's final classification (its best guess at "cat" or "flower"), the Lab takes the layer just before that decision: a roughly 1,000-dimension description of what the network noticed in the image. That description, not a colour histogram, is what t-SNE then maps into two dimensions.
+
+The practical difference shows up in what counts as a "neighbour." Two images with a similar colour palette but very different subjects — a portrait shot against green foliage, say, and a photograph of a forest — can end up close together under **Similarity**, because it never looks past colour. Under **Content**, they are far more likely to separate, because the underlying representation is closer to *what is depicted* than *what colour it is*. Conversely, images that look quite different in palette but share a subject (two portraits under different lighting, say) are more likely to end up as neighbours.
+
+Content is therefore useful for asking a different question than Similarity does:
+
+> **Which images resemble one another in subject and composition, independent of colour palette?**
+
+Comparing **Similarity** and **Content** side by side on the same collection is a way of making that distinction concrete: the same images, organised by two different notions of "alike," rarely produce the same map.
+
+The model (a few megabytes) is downloaded from a public CDN the first time Content is used in a session; after that, everything runs locally in the browser, the same as Similarity and Hue — images are not sent anywhere to compute this. Because of that one-time download, the first Content run in a session needs a network connection and takes a little longer than later runs or than Similarity.
+
+**In short:**
+`image → MobileNet (pretrained CNN) → content embedding → t-SNE → 2D neighbourhood map → spacing for viewing`
+
+**Supported capacity:** like Similarity, exact t-SNE limits Content to **250 images**.
+
 ### Hue
 
 **Hue** arranges images according to their dominant colour hue rather than their similarity across multiple visual features.
@@ -79,19 +101,22 @@ This can make colour patterns, repetitions, transitions and contrasts within a c
 
 **Supported capacity:** Hue can arrange up to **500 images**.
 
-### Reading the two arrangements
+### Reading the three arrangements
 
-The arrangements should be understood as two different ways of *making a collection observable*:
+The arrangements should be understood as different ways of *making a collection observable*:
 
-| Arrangement    | Organising principle                                         | Useful for exploring                                  |
-| -------------- | ------------------------------------------------------------ | ----------------------------------------------------- |
-| **Similarity** | Relationships between multidimensional image representations | Neighbourhoods, clusters, visual affinities, outliers |
-| **Hue**        | Colour hue                                                   | Colour patterns, gradients, repetition and contrast   |
+| Arrangement    | Organising principle                                    | Useful for exploring                                                |
+| -------------- | -------------------------------------------------------- | -------------------------------------------------------------------- |
+| **Similarity** | Relationships between colour/pixel-based representations | Neighbourhoods, clusters, colour-driven visual affinities, outliers  |
+| **Content**    | Relationships between MobileNet content embeddings        | Neighbourhoods based on subject and composition, independent of colour |
+| **Hue**        | Colour hue                                                | Colour patterns, gradients, repetition and contrast                  |
 
-Neither arrangement reveals the single or "correct" structure of an image collection. Each foregrounds particular properties of the images while making others less visible. Switching between them is therefore part of the analysis.
+None of the three arrangements reveals the single or "correct" structure of an image collection. Each foregrounds particular properties of the images while making others less visible. Switching between them — and noticing where Similarity and Content disagree about who counts as a neighbour — is therefore part of the analysis.
 
 ### References
 
 * van der Maaten, L. & Hinton, G. (2008). *Visualizing Data using t-SNE*. **Journal of Machine Learning Research, 9**, 2579–2605.
 * Wattenberg, M., Viégas, F. & Johnson, I. (2016). *How to Use t-SNE Effectively*. **Distill, 1**(10). DOI: 10.23915/distill.00002.
+* Sandler, M., Howard, A., Zhu, M., Zhmoginov, A. & Chen, L.-C. (2018). *MobileNetV2: Inverted Residuals and Linear Bottlenecks*. **CVPR 2018**, 4510–4520.
+* Howard, A.G. et al. (2017). *MobileNets: Efficient Convolutional Neural Networks for Mobile Vision Applications*. arXiv:1704.04861.
 * MDN Web Docs. *HSL colour notation* and *Hue*. Mozilla Developer Network.

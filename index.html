@@ -835,7 +835,7 @@ function spaceSimilarityLayout(rawPoints, tileSize, viewportW, viewportH){
   // available packing area efficiently without stretching either axis.
   const dataAspect = rangeX > 1e-9 && rangeY > 1e-9 ? rangeX/rangeY : safeW/safeH;
   const aspect = Math.max(0.75, Math.min(2, dataAspect));
-  const requiredArea = n*cell*cell*1.55;
+  const requiredArea = n*cell*cell*2.05;
   const anchorWorldW = Math.max(safeW*1.2, Math.sqrt(requiredArea*aspect));
   const anchorWorldH = Math.max(safeH*1.2, requiredArea/anchorWorldW);
   const padding = cell;
@@ -882,7 +882,10 @@ function spaceSimilarityLayout(rawPoints, tileSize, viewportW, viewportH){
       if (useAnchors){
         // The spring fades as the layout settles: neighbourhoods remain
         // recognisable, while dense clusters still gain enough room to read.
-        const anchorStrength = 0.002 + 0.012*(1-step/iterations);
+        // Held stronger than before so that separate similarity clusters keep
+        // their true relative distance instead of drifting together as
+        // overlap gets resolved locally, pair by pair.
+        const anchorStrength = 0.01 + 0.05*(1-step/iterations);
         for (const node of nodes){
           node.x += (node.ax-node.x)*anchorStrength;
           node.y += (node.ay-node.y)*anchorStrength;

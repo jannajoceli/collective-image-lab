@@ -415,6 +415,7 @@ const BASE = INDEX_URL ? INDEX_URL.replace(/[^/]+$/, "") : "";
 const WORLD = 2400;
 const items = [];
 let mode = "similarity", tileSize = 100, layoutCache = {}, tsneJob = null;
+let worldWidth = WORLD, worldHeight = WORLD;
 let indexData = null, selectedId = null;
 const loadedIds = new Set();
 let publicView = "lab";
@@ -799,6 +800,238 @@ function normalise(pts){
 }
 
 
+function spaceSimilarityLayout(rawPoints, tileSize, viewportW, viewportH){
+  const n = rawPoints.length;
+  if (!n) return { points:[], width:Math.max(1, viewportW), height:Math.max(1, viewportH) };
+
+  // Collision is based on the square occupied by a thumbnail, including a
+  // visible gutter. The images themselves keep their original aspect ratio.
+  const gap = Math.max(10, Math.round(tileSize*0.14));
+  const cell = tileSize + gap;
+  const safeW = Math.max(1, viewportW);
+  const safeH = Math.max(1, viewportH);
+
+  function quantile(sorted, q){
+    if (sorted.length === 1) return sorted[0];
+    const pos = (sorted.length-1)*q;
+    const lo = Math.floor(pos), hi = Math.ceil(pos), mix = pos-lo;
+    return sorted[lo]*(1-mix) + sorted[hi]*mix;
+  }
+
+  function robustExtent(values){
+    const sorted = values.filter(Number.isFinite).sort(function(a,b){ return a-b; });
+    if (!sorted.length) return { lo:0, hi:0 };
+    const fullLo = sorted[0], fullHi = sorted[sorted.length-1];
+    if (sorted.length < 4 || fullHi-fullLo < 1e-9) return { lo:fullLo, hi:fullHi };
+    const lo = quantile(sorted, 0.02), hi = quantile(sorted, 0.98);
+    return hi-lo > 1e-9 ? { lo:lo, hi:hi } : { lo:fullLo, hi:fullHi };
+  }
+
+  const xExtent = robustExtent(rawPoints.map(function(p){ return p.x; }));
+  const yExtent = robustExtent(rawPoints.map(function(p){ return p.y; }));
+  const rangeX = xExtent.hi-xExtent.lo;
+  const rangeY = yExtent.hi-yExtent.lo;
+  // Follow the robust t-SNE aspect ratio where possible. This uses the
+  // available packing area efficiently without stretching either axis.
+  const dataAspect = rangeX > 1e-9 && rangeY > 1e-9 ? rangeX/rangeY : safeW/safeH;
+  const aspect = Math.max(0.75, Math.min(2, dataAspect));
+  const requiredArea = n*cell*cell*1.55;
+  const anchorWorldW = Math.max(safeW*1.2, Math.sqrt(requiredArea*aspect));
+  const anchorWorldH = Math.max(safeH*1.2, requiredArea/anchorWorldW);
+  const padding = cell;
+  const innerW = Math.max(1, anchorWorldW-padding*2);
+  const innerH = Math.max(1, anchorWorldH-padding*2);
+  const scales = [];
+  if (rangeX > 1e-9) scales.push(innerW/rangeX);
+  if (rangeY > 1e-9) scales.push(innerH/rangeY);
+  const scale = scales.length ? Math.min.apply(null, scales) : 1;
+  const usedW = rangeX > 1e-9 ? rangeX*scale : 0;
+  const usedH = rangeY > 1e-9 ? rangeY*scale : 0;
+  const offsetX = (anchorWorldW-usedW)/2;
+  const offsetY = (anchorWorldH-usedH)/2;
+  const clamp = function(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); };
+
+  /*
+   * ax/ay are robustly scaled t-SNE anchors. One shared scale is used for
+   * both axes, so this step does not stretch the analytical geometry. x/y
+   * may move away from the anchors only as much as visibility requires.
+   */
+  const nodes = rawPoints.map(function(p, i){
+    const px = Number.isFinite(p.x) ? p.x : (xExtent.lo+xExtent.hi)/2;
+    const py = Number.isFinite(p.y) ? p.y : (yExtent.lo+yExtent.hi)/2;
+    const ax = rangeX > 1e-9 ? offsetX + (clamp(px, xExtent.lo, xExtent.hi)-xExtent.lo)*scale
+      : anchorWorldW/2;
+    const ay = rangeY > 1e-9 ? offsetY + (clamp(py, yExtent.lo, yExtent.hi)-yExtent.lo)*scale
+      : anchorWorldH/2;
+    // A deterministic, sub-pixel offset prevents coincident points from
+    // deadlocking without making repeated runs change at the packing stage.
+    const angle = i*2.399963229728653;
+    const jitter = Math.min(0.1, cell*0.001);
+    return Object.assign({}, p, {
+      index:p.index === undefined ? i : p.index,
+      order:i,
+      ax:ax,
+      ay:ay,
+      x:ax + Math.cos(angle)*jitter,
+      y:ay + Math.sin(angle)*jitter
+    });
+  });
+
+  function separatePairs(useAnchors, iterations){
+    for (let step = 0; step < iterations; step++){
+      if (useAnchors){
+        // The spring fades as the layout settles: neighbourhoods remain
+        // recognisable, while dense clusters still gain enough room to read.
+        const anchorStrength = 0.002 + 0.012*(1-step/iterations);
+        for (const node of nodes){
+          node.x += (node.ax-node.x)*anchorStrength;
+          node.y += (node.ay-node.y)*anchorStrength;
+        }
+      }
+
+      let largestOverlap = 0;
+      for (let i = 0; i < nodes.length; i++){
+        for (let j = i+1; j < nodes.length; j++){
+          const a = nodes[i], b = nodes[j];
+          let dx = b.x-a.x, dy = b.y-a.y;
+          if (Math.abs(dx) < 0.001 && Math.abs(dy) < 0.001){
+            const angle = ((i+1)*0.754877666 + (j+1)*0.569840296)*Math.PI*2;
+            dx = Math.cos(angle)*0.01;
+            dy = Math.sin(angle)*0.01;
+          }
+          const overlapX = cell-Math.abs(dx);
+          const overlapY = cell-Math.abs(dy);
+          if (overlapX <= 0 || overlapY <= 0) continue;
+
+          const overlap = Math.min(overlapX, overlapY);
+          largestOverlap = Math.max(largestOverlap, overlap);
+          // Resolve the shallower axis, which alters the t-SNE position less.
+          const push = (overlap+0.01)*0.52;
+          if (overlapX < overlapY){
+            const direction = dx >= 0 ? 1 : -1;
+            a.x -= direction*push/2;
+            b.x += direction*push/2;
+          } else {
+            const direction = dy >= 0 ? 1 : -1;
+            a.y -= direction*push/2;
+            b.y += direction*push/2;
+          }
+        }
+      }
+      if (!useAnchors && largestOverlap < 0.05) break;
+    }
+  }
+
+  function placeRemainingCollisions(){
+    // Relaxation preserves the map well, but chains of tightly packed nodes
+    // can keep passing a small overlap from one neighbour to the next. Finish
+    // with a deterministic nearest-free-position search. It runs only for
+    // nodes that still collide and guarantees a readable final result.
+    const collisionCount = new Array(nodes.length).fill(0);
+    for (let i = 0; i < nodes.length; i++){
+      for (let j = i+1; j < nodes.length; j++){
+        if (Math.abs(nodes[i].x-nodes[j].x) < cell &&
+            Math.abs(nodes[i].y-nodes[j].y) < cell){
+          collisionCount[i]++;
+          collisionCount[j]++;
+        }
+      }
+    }
+
+    const ordered = nodes.slice().sort(function(a,b){
+      return collisionCount[b.order]-collisionCount[a.order] || a.order-b.order;
+    });
+    const buckets = new Map();
+    const bucketKey = function(x,y){ return x + "," + y; };
+
+    function add(node){
+      const bx = Math.floor(node.x/cell), by = Math.floor(node.y/cell);
+      const key = bucketKey(bx, by);
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key).push(node);
+    }
+
+    function collides(x,y){
+      const bx = Math.floor(x/cell), by = Math.floor(y/cell);
+      for (let ox = -1; ox <= 1; ox++){
+        for (let oy = -1; oy <= 1; oy++){
+          const nearby = buckets.get(bucketKey(bx+ox, by+oy)) || [];
+          for (const other of nearby){
+            if (Math.abs(other.x-x) < cell &&
+                Math.abs(other.y-y) < cell) return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    const ringStep = cell*0.25;
+    const maxRings = Math.max(24, Math.ceil(Math.sqrt(nodes.length)*4));
+    for (const node of ordered){
+      if (collides(node.x, node.y)){
+        const baseX = node.x, baseY = node.y;
+        let placed = false;
+        for (let ring = 1; ring <= maxRings && !placed; ring++){
+          const radius = ring*ringStep;
+          const candidates = Math.max(8, Math.ceil(2*Math.PI*radius/(cell*0.45)));
+          const startAngle = node.order*2.399963229728653 + ring*0.618033988749895;
+          for (let k = 0; k < candidates; k++){
+            const angle = startAngle + k*2*Math.PI/candidates;
+            const x = baseX + Math.cos(angle)*radius;
+            const y = baseY + Math.sin(angle)*radius;
+            if (!collides(x,y)){
+              node.x = x;
+              node.y = y;
+              placed = true;
+              break;
+            }
+          }
+        }
+        // This is only a guard for a pathologically full search area. The row
+        // sits beyond every placed node, so it remains collision-free.
+        if (!placed){
+          let right = baseX;
+          for (const other of ordered){
+            if (buckets.size && Number.isFinite(other.x)) right = Math.max(right, other.x);
+          }
+          node.x = right+cell;
+          node.y = baseY;
+        }
+      }
+      add(node);
+    }
+  }
+
+  separatePairs(true, 70);
+  // End with collision-only passes. A final anchor pull would otherwise put a
+  // small amount of overlap back into the finished layout.
+  separatePairs(false, 15);
+  placeRemainingCollisions();
+
+  // Fit the world to the resolved thumbnails rather than to the original
+  // t-SNE extrema. Nodes are allowed to expand beyond the anchor canvas, so
+  // dense groups do not accumulate against a hard boundary.
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const node of nodes){
+    minX = Math.min(minX, node.x); maxX = Math.max(maxX, node.x);
+    minY = Math.min(minY, node.y); maxY = Math.max(maxY, node.y);
+  }
+  const margin = tileSize/2 + gap;
+  const shiftX = margin-minX, shiftY = margin-minY;
+  for (const node of nodes){
+    node.x += shiftX; node.y += shiftY;
+    node.ax += shiftX; node.ay += shiftY;
+    delete node.order;
+  }
+
+  return {
+    points:nodes,
+    width:Math.max(cell, maxX-minX + margin*2),
+    height:Math.max(cell, maxY-minY + margin*2)
+  };
+}
+
+
 function gridFromOrder(order){
   const n = order.length, cols = Math.ceil(Math.sqrt(n)), rows = Math.ceil(n/cols);
   const out = new Array(n);
@@ -856,7 +1089,11 @@ async function buildLayout(which){
         if (job.cancelled) return;
       }
     }
-    layoutCache.similarity = normalise(S.Y);
+    say("Spacing thumbnails…");
+    await new Promise(r => requestAnimationFrame(r));
+    layoutCache.similarity = spaceSimilarityLayout(S.Y.map(function(p, i){
+      return { x:p[0], y:p[1], index:i };
+    }), tileSize, W, H);
   }
   say("");
   applyLayout(layoutCache[which]);
@@ -866,15 +1103,28 @@ async function buildLayout(which){
 }
 
 
-function applyLayout(pts){
-  items.forEach(function(it, i){ it.tgt.x = pts[i].x*WORLD; it.tgt.y = pts[i].y*WORLD; });
+function applyLayout(layout){
+  const isSpaced = !Array.isArray(layout);
+  const pts = isSpaced ? layout.points : layout;
+  worldWidth = isSpaced ? layout.width : WORLD;
+  worldHeight = isSpaced ? layout.height : WORLD;
+  items.forEach(function(it, i){
+    it.tgt.x = isSpaced ? pts[i].x : pts[i].x*WORLD;
+    it.tgt.y = isSpaced ? pts[i].y : pts[i].y*WORLD;
+  });
   fitView();
 }
 
 
 function fitView(){
-  const pad = 56, k = Math.min((W-pad*2)/WORLD, (H-pad*2)/WORLD);
-  view.k = k; view.x = (W-WORLD*k)/2; view.y = (H-WORLD*k)/2;
+  const pad = 56;
+  const k = Math.max(0.02, Math.min(
+    Math.max(1, W-pad*2)/Math.max(1, worldWidth),
+    Math.max(1, H-pad*2)/Math.max(1, worldHeight)
+  ));
+  view.k = k;
+  view.x = (W-worldWidth*k)/2;
+  view.y = (H-worldHeight*k)/2;
 }
 
 
@@ -1025,7 +1275,8 @@ document.getElementById("expCsv").addEventListener("click", function(){
   if (!items.length) return;
   const rows = ["id,x,y,origin,file"];
   items.forEach(function(it, i){
-    rows.push((i+1) + "," + (it.tgt.x/WORLD).toFixed(5) + "," + (it.tgt.y/WORLD).toFixed(5)
+    rows.push((i+1) + "," + (it.tgt.x/worldWidth).toFixed(5) + "," +
+      (it.tgt.y/worldHeight).toFixed(5)
       + "," + it.origin + ',"' + it.name.replace(/"/g, '""') + '"');
   });
   download("data:text/csv;charset=utf-8," + encodeURIComponent(rows.join("\n")),

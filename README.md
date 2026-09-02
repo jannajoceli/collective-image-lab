@@ -1,6 +1,6 @@
 # Collective Image Lab
 
-<img width="800" height="500" alt="collectiveimagelabdemo800" src="https://github.com/user-attachments/assets/8072d01d-ec0b-485f-8639-ad0c2d63590f" />
+<img width="800" height="500" alt="collectiveimagelabdemo800" src="https://github.com/user-attachments/assets/0eb84e1a-dcc1-441d-99d1-5bdc64c4a5a7" />
 
 Browser tool for the Digital Methods Labs, King's College London. Collective Image Lab lets students load a shared collection, add their own images, and see how a set of photos organises itself — by colour and layout, by what's actually pictured (via a small on-device content model), or by hue — as a hands-on way into what 'similarity' means to different methods. Everything runs client-side; nothing is uploaded by the page itself.
 

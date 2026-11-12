@@ -7,6 +7,16 @@ Browser tool for the Digital Methods Labs, King's College London. Collective Ima
 Made with ♡ & ✨ by Janna Joceli Omena
 Background image: Paweł Czerwiński, Unsplash.
 
+## Licence
+
+The original Collective Image Lab software code and associated documentation are released under the **MIT License**. See [LICENSE](LICENSE). Copyright (c) 2026 Janna Joceli Omena.
+
+This software licence **does not extend to contributed images or third-party materials**:
+
+- **Student-contributed images** in published collections are licensed under **Creative Commons Attribution 4.0 International (CC BY 4.0)**, with attribution to "5AAVC200 Digital Methods, King's College London". See [collection information](info.md).
+- **The background photograph** is credited to Paweł Czerwiński (Unsplash) and is subject to its applicable image licence.
+- **External libraries, pretrained models and other third-party components** remain subject to their respective licences and terms.
+
 ## URLs
 
 - Public lab: https://jannajoceli.github.io/collective-image-lab/

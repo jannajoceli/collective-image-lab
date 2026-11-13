@@ -7,6 +7,14 @@ Browser tool for the Digital Methods Labs, King's College London. Collective Ima
 Made with ♡ & ✨ by Janna Joceli Omena
 Background image: Paweł Czerwiński, Unsplash.
 
+## How to cite
+
+If you use Collective Image Lab in your research or teaching, please cite the version used:
+
+> Omena, J. J. (2026). *Collective Image Lab* (Version 1.0.0) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.24206571
+
+This DOI identifies version 1.0.0. For a general reference to the software across versions, use https://doi.org/10.5281/zenodo.24206570.
+
 ## Licence
 
 The original Collective Image Lab software code and associated documentation are released under the **MIT License**. See [LICENSE](LICENSE). Copyright (c) 2026 Janna Joceli Omena.
